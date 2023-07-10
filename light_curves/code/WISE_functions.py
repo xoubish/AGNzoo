@@ -30,7 +30,7 @@ def WISE_get_lightcurves(coords_list, labels_list, radius, bandlist):
     """
 
     #setup the explorer
-    ucx = unTimelyCatalogExplorer(directory=os.getcwd(), cache=True, show_progress=True, timeout=300,
+    ucx = unTimelyCatalogExplorer(directory=os.getcwd(), cache=True, show_progress=False, timeout=300,
                                   catalog_base_url='http://unwise.me/data/neo7/untimely-catalog/',
                                   catalog_index_file='untimely_index-neo7.fits')
 

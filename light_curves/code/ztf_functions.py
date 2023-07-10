@@ -121,3 +121,47 @@ def ZTF_get_lightcurve(coords_list, labels_list, plotprint=1, ztf_radius=0.00027
                 count_nomatch+=1
     print(count_nomatch,' objects did not match to ztf')
     return df_lc
+
+def ZTF_get_one_lightcurve(df_lc, coord, label, objectid, ztf_radius=0.000278):
+
+    #df_lc = MultiIndexDFObject()
+    ra = coord.ra.deg
+    dec = coord.dec.deg
+    lab = label
+    urlstr = 'https://irsa.ipac.caltech.edu/cgi-bin/ZTF/nph_light_curves?POS=CIRCLE %f %f %f&BANDNAME=g,r,i&FORMAT=ipac_table&BAD_CATFLAGS_MASK=32768'%(ra, dec,ztf_radius)
+    response = requests.get(urlstr)
+    
+    if response.ok:
+        ztf_lc = ascii.read(response.text, format='ipac')
+        if len(np.unique(ztf_lc['oid']))>0:
+            idu,inds = np.unique(ztf_lc['oid'],return_index=True)
+            filternames = ['zg','zr','zi']
+            filtercounter = [0,0,0] #[g,r,i]
+            filterflux = [[],[],[]]
+            
+            for nn,idd in enumerate(idu):
+                sel = (ztf_lc['oid']==idd)    
+                flux = 10**((ztf_lc['mag'][sel] - 23.9)/(-2.5))  #now in uJy [Based on ztf paper https://arxiv.org/pdf/1902.01872.pdf zeropoint corrections already applied]
+                magupper = ztf_lc['mag'][sel] + ztf_lc['magerr'][sel]
+                maglower = ztf_lc['mag'][sel] - ztf_lc['magerr'][sel]
+                flux_upper = abs(flux - (10**((magupper - 23.9)/(-2.5))))
+                flux_lower =  abs(flux - (10**((maglower - 23.9)/(-2.5))))
+                fluxerr = (flux_upper + flux_lower) / 2.0
+                flux = flux * (1E-3) # now in mJy
+                fluxerr = fluxerr * (1E-3) # now in mJy
+
+                if (filtercounter[filternames.index(ztf_lc['filtercode'][sel][0])]>=1) and (len(flux)<=len(filterflux[filternames.index(ztf_lc['filtercode'][sel][0])])):
+                    filtercounter[filternames.index(ztf_lc['filtercode'][sel][0])]+=1
+                elif (filtercounter[filternames.index(ztf_lc['filtercode'][sel][0])]>=1) and (len(flux)>len(filterflux[filternames.index(ztf_lc['filtercode'][sel][0])])):
+                    df_lc.remove((objectid, lab, ztf_lc["filtercode"][sel][0]))
+                    dfsingle = pd.DataFrame(dict(flux=flux, err=fluxerr, time=ztf_lc['mjd'][sel], objectid=objectid, band=ztf_lc['filtercode'][sel][0], label=lab)).set_index(["objectid","label", "band", "time"])
+                    df_lc.append(dfsingle)
+                else:
+                    dfsingle = pd.DataFrame(dict(flux=flux, err=fluxerr, time=ztf_lc['mjd'][sel], objectid=objectid, band=ztf_lc['filtercode'][sel][0], label=lab)).set_index(["objectid" ,"label","band", "time"])
+                    df_lc.append(dfsingle)
+                    filtercounter[filternames.index(ztf_lc['filtercode'][sel][0])]+=1
+                    filterflux[filternames.index(ztf_lc['filtercode'][sel][0])]=flux
+
+        else:
+            print(count_nomatch,' objects did not match to ztf')
+    return df_lc
