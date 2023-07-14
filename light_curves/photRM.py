@@ -203,15 +203,15 @@ def lc_conti(T, osc=True, A=0.14, noise=0.00005, z=0, method='Kelly1',
             
         print("Something is wrong with keywords 'lag' or 'lum': invalid input.")
      
-    print("Properties of the simulated AGN object:")
-    print(39*'-')
-    print("log(L) = {:.2f}".format(np.log10(float(lumbol))))
+    #print("Properties of the simulated AGN object:")
+    #print(39*'-')
+    #print("log(L) = {:.2f}".format(np.log10(float(lumbol))))
 
     # Calculate supermassive black hole mass using L, 
     # Eddington ratio (eq. 18, Shankar+2009) and 
     # Eddington luminosity (Woo & Urry 2002)
     msmbh=np.power((lumbol*const2/const1),2/3.)
-    print("MBH = {:.2e} M_sun".format(float(msmbh)))
+    #print("MBH = {:.2e} M_sun".format(float(msmbh)))
     
     # Calculate DRW model parameters (Kelly et al. 2009): 
     # damping time scale (tau) & amplitude of correlation decay (sig)
@@ -229,14 +229,14 @@ def lc_conti(T, osc=True, A=0.14, noise=0.00005, z=0, method='Kelly1',
         logsig2 = 8-0.27*np.log10(lumbol)+0.47*np.log10(1+z)    # Eq 25
         sig = np.sqrt(np.power(10,logsig2))/np.sqrt(1+z)        # Eq 18
         
-    print("tau_DRW = {:.2f} days".format(float(tau)))
-    print("sigma_DRW = {:.2f} mag^2/day".format(float(sig)))
+    #print("tau_DRW = {:.2f} days".format(float(tau)))
+    #print("sigma_DRW = {:.2f} mag^2/day".format(float(sig)))
     
     # Calculate the broad line region radius (Bentz et al. 2013)
     logrblr = 1.527 + 0.533*np.log10(lumbol/1e44)
     rblr = np.power(10,logrblr)
     rblr=rblr.item()
-    print("Time-lag = {:.2f} days".format(rblr))
+    #print("Time-lag = {:.2f} days".format(rblr))
     
     
     # Calculating light curve magnitudes using DRW model
@@ -709,19 +709,19 @@ def peak_finder(y, x, interval, first=False):
     peaks_y = np.asarray(peaks_y)
     tau = peaks_x[peaks_y.argmax()]
     
-    print('Peak candidates (x-axis vals): ', peaks_x)
+    #print('Peak candidates (x-axis vals): ', peaks_x)
     
     # get the first peak only in a given interval
     if first:
         tau = peaks_x[0]
         peaks_x = peaks_x[0]
         peaks_y = peaks_y[0]
-        print('First peak: ', tau)
+        #print('First peak: ', tau)
         
     # get max. peak from peak candidates in a given interval
     else:
         tau = peaks_x[peaks_y.argmax()]
-        print('Max. peak: ', tau)
+        #print('Max. peak: ', tau)
     
     return tau, peaks_x, peaks_y
 
