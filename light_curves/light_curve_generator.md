@@ -133,6 +133,10 @@ get_yang_sample(coords, labels)   #2018ApJ...862..109Y
 sample_table = clean_sample(coords, labels)
 ```
 
+```{code-cell} ipython3
+type(labels)
+```
+
 ### 1.1 Build your own sample
 
 To build your own sample, you can follow the examples of functions above to grab coordinates from your favorite literature resource, 
@@ -142,7 +146,48 @@ or
 You can use [astropy's read](https://docs.astropy.org/en/stable/io/ascii/read.html) function to read in an input table
 to an [astropy table](https://docs.astropy.org/en/stable/table/)
 
-+++
+```{code-cell} ipython3
+from astropy.io import ascii
+from astropy.coordinates import SkyCoord
+import numpy as np
+def get_WISE_AGN(coords, labels, verbose = 1):
+    """Automatically grabs changing look AGN from MacLeod et al., 2019 sample.
+
+    Parameters
+    ----------
+    coords : list
+        list of Astropy SkyCoords derived from literature sources, shared amongst functions
+    lables : list
+        List of the first author name and publication year for tracking the sources, shared amongst functions
+    verbose : int, optional
+        Print out the length of the sample derived from this literature source
+    """
+    WISE_table = ascii.read('data/WISE_AGN_STAT.dat')  
+  
+    WISE_coords = [SkyCoord(ra, dec, frame='icrs', unit='deg') for ra, dec in zip(WISE_table['WISE_RA'], WISE_table['WISE_Dec'])]
+    
+    #this has 1s and 0s for variable and not variable
+    binary_list = WISE_table['VIS_VAR_AGN']
+    
+    # Replace 1s with "variable" and 0s with "not-variable"
+    WISE_labels = [("variable" if element == 1 else "not-variable") for element in binary_list]
+   
+    coords.extend(WISE_coords)
+    labels.extend(WISE_labels)
+    if verbose:
+        print('WISE AGN- Faisst et al 2019: ',len(WISE_labels))
+```
+
+```{code-cell} ipython3
+coords =[]
+labels = []
+
+get_WISE_AGN(coords, labels)
+
+# Remove duplicates, attach an objectid to the coords,
+# convert to astropy table to keep all relevant info together
+sample_table = clean_sample(coords, labels)
+```
 
 ### 1.2 Write out your sample to disk
 
@@ -151,7 +196,7 @@ At this point you may wish to write out your sample to disk and reuse that in fu
 For the format of the save file, we would suggest to choose from various formats that fully support astropy objects(eg., SkyCoord).  One example that works is Enhanced Character-Separated Values or ['ecsv'](https://docs.astropy.org/en/stable/io/ascii/ecsv.html)
 
 ```{code-cell} ipython3
-sample_table.write('data/input_sample.ecsv', format='ascii.ecsv', overwrite = True)
+sample_table.write('data/WISE_AGN_sample.ecsv', format='ascii.ecsv', overwrite = True)
 ```
 
 ### 1.3 Load the sample table from disk
@@ -227,7 +272,7 @@ The function to retrieve WISE light curves accesses an IRSA generated version of
 ```{code-cell} ipython3
 WISEstarttime = time.time()
 
-bandlist = ['W1', 'W2']  #list of the WISE band names
+bandlist = ['W1']  #list of the WISE band names
 WISE_radius = 1.0 * u.arcsec
 # get WISE light curves
 df_lc_WISE = WISE_get_lightcurves(sample_table, WISE_radius, bandlist)
@@ -236,6 +281,13 @@ df_lc_WISE = WISE_get_lightcurves(sample_table, WISE_radius, bandlist)
 df_lc.append(df_lc_WISE)
 
 print('WISE search took:', time.time() - WISEstarttime, 's')
+```
+
+```{code-cell} ipython3
+#how many objects are there after looking for WISE light curves?
+df_lc.data
+#print(df_lc.groupby(["band", "objectid"]).ngroups, "n groups")
+print(df_lc.data.groupby(["objectid"]).ngroups, "n groups")
 ```
 
 ### 2.4 MAST: Pan-STARRS
@@ -423,8 +475,8 @@ parallel_df_lc.data
 
 ```{code-cell} ipython3
 # Save the data for future use with ML notebook
-#parquet_savename = 'output/df_lc_090723_yang.parquet'
-#parallel_df_lc.data.to_parquet(parquet_savename)
+parquet_savename = 'output/df_lc_WISE_W1_AGN.parquet'
+df_lc.data.to_parquet(parquet_savename)
 #print("file saved!")
 ```
 
@@ -457,7 +509,7 @@ This work made use of:
 &bull; Astropy; Astropy Collaboration 2022, Astropy Collaboration 2018, Astropy Collaboration 2013,    2022ApJ...935..167A, 2018AJ....156..123A, 2013A&A...558A..33A  
 &bull; Lightkurve; Lightkurve Collaboration 2018, 2018ascl.soft12013L  
 &bull; acstools; https://zenodo.org/record/7406933#.ZBH1HS-B0eY  
-&bull; unWISE light curves; Meisner et al., 2023, 2023AJ....165...36M  
+&bull; unWISE light curves; Meisner et al., 2023, 2023AJ....165...36M
 
 ```{code-cell} ipython3
 

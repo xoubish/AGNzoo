@@ -4,11 +4,11 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.15.2
+    jupytext_version: 1.16.0
 kernelspec:
-  display_name: Python 3 (ipykernel)
+  display_name: science_demo
   language: python
-  name: python3
+  name: conda-env-science_demo-py
 ---
 
 # Light Curve Classifier
@@ -142,7 +142,6 @@ df_lc = df_lc[~df_lc["band"].isin(bands_to_drop)]
 All CLAGN start in the dataset as having labels based on their discovery paper.  Because we want one sample with all known CLAGN, change those discoery names to be simply "CLAGN" for all CLAGN, regardless of origin
 
 ```{code-cell} ipython3
-
 df_lc['label'] = df_lc.label.str.replace('MacLeod 16', 'CLAGN')
 df_lc['label'] = df_lc.label.str.replace('LaMassa 15', 'CLAGN')
 df_lc['label'] = df_lc.label.str.replace('Yang 18', 'CLAGN')
@@ -152,7 +151,6 @@ df_lc['label'] = df_lc.label.str.replace('Sheng 20', 'CLAGN')
 df_lc['label'] = df_lc.label.str.replace('MacLeod 19', 'CLAGN')
 df_lc['label'] = df_lc.label.str.replace('Green 22', 'CLAGN')
 df_lc['label'] = df_lc.label.str.replace('Lopez-Navas 22', 'CLAGN')
-
 ```
 
 ### 2.3 Remove "bad"  data
@@ -178,7 +176,6 @@ df_lc.dropna(inplace = True, axis = 0)
 #We are going to define zero flux later to be missing data, but not sure what these are
 querystring = 'flux < 0.000001'
 df_lc = df_lc.drop(df_lc.query(querystring).index)
-
 ```
 
 ```{code-cell} ipython3
@@ -246,7 +243,6 @@ total_objectids = df_lc.groupby( "objectid").ngroups
 for band, df_lc_band in df_lc.groupby( "band"):
     total_band = df_lc_band.groupby("objectid").ngroups
     print(total_band/total_objectids, " have ", band, " fluxes" )
-
 ```
 
 ```{code-cell} ipython3
@@ -296,7 +292,6 @@ df_lc = df_lc.groupby(["band", "objectid"]).filter(lambda x: len(x) > thresh_too
 print(df_lc.groupby(["band", "objectid"]).ngroups, "n groups after")
 
 #currently this seems like a lot of groups because we still have the gaia single photometry points for many objects
-
 ```
 
 ### 2.5 Missing Data
@@ -519,7 +514,6 @@ t = Time(jd, format = 'jd' )
 #t.datetime is now an array of type datetime
 #make it a column in the dataframe
 df_lc['datetime'] = t.datetime
-
 ```
 
 ### 2.9 Save this dataframe
@@ -538,7 +532,6 @@ df_lc = df_lc.set_index(["objectid", "label", "datetime"])
 ```
 
 ## 3. Prep for ML algorithms in sktime
-
 
 ```{code-cell} ipython3
 # could load a previously saved file in order to plot
@@ -601,7 +594,6 @@ X_test = test_df.droplevel('label')
 #y are the labels, should be a series 
 y_train = train_df.droplevel('datetime').index.unique().get_level_values('label').to_series()
 y_test = test_df.droplevel('datetime').index.unique().get_level_values('label').to_series()
-
 ```
 
 ### 3.2 Check that the data types are ok for sktime
@@ -623,7 +615,6 @@ We choose to use [sktime](https://www.sktime.net/en/stable/index.html) algorithm
 Types of classifiers are listed [here](https://www.sktime.net/en/stable/api_reference/classification.html).
 
 This notebook will invert the actual workflow and show you a single example of the algorithm which best fits the data and has the most accurate classifier. Then it will show how to write a for loop over a bunch of classifiers before narrowing it down to the most accurate.
-
 
 ```{code-cell} ipython3
 #what is the list of all possible classifiers that work with multivariate data
