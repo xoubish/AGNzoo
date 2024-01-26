@@ -1,3 +1,5 @@
+from requests.exceptions import ConnectionError
+
 import astropy.units as u
 import numpy as np
 from alerce.core import Alerce
@@ -387,7 +389,11 @@ def get_paper_sample(paper_link,label,coords,labels,verbose=1):
     verbose : int, optional
         Print out the length of the sample derived from this literature source
     """
-    paper = Ned.query_refcode(paper_link)
+    try:
+        paper = Ned.query_refcode(paper_link)
+    except ConnectionError:
+        print(f"WARNING: encountered a ConnectionError error for paper {paper_link}. skipping.")
+        return
 
     paper_coords = [SkyCoord(ra, dec, frame='icrs', unit='deg') for ra, dec in zip(paper['RA'], paper['DEC'])]
     paper_labels = [label for ra in paper['RA']]
@@ -395,6 +401,23 @@ def get_paper_sample(paper_link,label,coords,labels,verbose=1):
     labels.extend(paper_labels)
     if verbose:
         print("number of sources added from "+str(label)+" :"+str(len(paper_coords)))
+
+
+def get_papers_sample(coords, labels, *, paper_kwargs):
+    """Wrapper for get_paper_sample. Calls get_paper_sample for each item in paper_kwargs.
+
+    Parameters
+    ----------
+    coords : list
+        list of Astropy SkyCoords derived from literature sources, shared amongst functions
+    lables : list
+        List of the first author name and publication year for tracking the sources, shared amongst functions
+    paper_kwargs : list[dict]
+        List of dicts containing keyword arguments passed on to get_paper_sample.
+    """
+    # loop over the papers in paper_kwargs and call get_paper_sample for each
+    for kwargs in paper_kwargs:
+        get_paper_sample(coords, labels, **kwargs)
 
 
 def clean_sample(coords_list, labels_list, *, consolidate_nearby_objects=True, verbose=1):
