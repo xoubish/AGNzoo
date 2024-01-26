@@ -11,7 +11,7 @@ from astroquery.vizier import Vizier
 
 
 #lamassa et al., 2015  1 source
-def get_lamassa_sample(coords, labels, verbose=1):
+def get_lamassa_sample(coords, labels, *, verbose=1):
     """Automatically grabs changing look AGN from LaMassa et al 2015 sample.
 
     Parameters
@@ -32,7 +32,7 @@ def get_lamassa_sample(coords, labels, verbose=1):
 
 
 #MacLeod et al., 2016
-def get_macleod16_sample(coords, labels, verbose=1):
+def get_macleod16_sample(coords, labels, *, verbose=1):
     """Automatically grabs changing look AGN from MacLeod et al., 2016 sample.
 
     Parameters
@@ -57,7 +57,7 @@ def get_macleod16_sample(coords, labels, verbose=1):
 
 
 #Ruan et al., 2016  3 sources
-def get_ruan_sample(coords, labels, verbose=1):
+def get_ruan_sample(coords, labels, *, verbose=1):
     """Automatically grabs changing look AGN from Ruan et al., 2016 sample.
 
     Parameters
@@ -82,7 +82,7 @@ def get_ruan_sample(coords, labels, verbose=1):
 
 
 #MacLeod et al., 2019 17 sources
-def get_macleod19_sample(coords, labels, verbose=1):
+def get_macleod19_sample(coords, labels, *, verbose=1):
     """Automatically grabs changing look AGN from MacLeod et al., 2019 sample.
 
     Parameters
@@ -113,7 +113,7 @@ def get_macleod19_sample(coords, labels, verbose=1):
 
 
 #sheng et al., 2020
-def get_sheng_sample(coords, labels, verbose=1):
+def get_sheng_sample(coords, labels, *, verbose=1):
     """Automatically grabs changing look AGN from sheng et al., 2020 sample.
 
     Parameters
@@ -137,7 +137,7 @@ def get_sheng_sample(coords, labels, verbose=1):
 
 
 #green et al., 2022  19 sources
-def get_green_sample(coords, labels, verbose=1):
+def get_green_sample(coords, labels, *, verbose=1):
     """Automatically grabs changing look AGN from green et al., 2022 sample.
 
     Parameters
@@ -174,7 +174,7 @@ def get_green_sample(coords, labels, verbose=1):
         print('Changing Look AGN- Green et al 2022: ',len(green_labels))
 
 #Lyu et al., 2021  lists a known sample of 68 sources to date!!!
-def get_lyu_sample(coords, labels, verbose=1):
+def get_lyu_sample(coords, labels, *, verbose=1):
     """Automatically grabs changing look AGN from Lyu et al., 2021 sample.
 
     Parameters
@@ -197,7 +197,7 @@ def get_lyu_sample(coords, labels, verbose=1):
 
 
 #Lopez-navas et al., 2022
-def get_lopeznavas_sample(coords, labels, verbose=1):
+def get_lopeznavas_sample(coords, labels, *, verbose=1):
     """Automatically grabs changing look AGN from Lopez-navas et al., 2022 sample.
 
     Parameters
@@ -222,7 +222,7 @@ def get_lopeznavas_sample(coords, labels, verbose=1):
 
 
 #Hon et al., 2022
-def get_hon_sample(coords, labels, verbose=1):
+def get_hon_sample(coords, labels, *, verbose=1):
     """Automatically grabs changing look AGN from Hon et al., 2022 sample.
 
     Parameters
@@ -244,7 +244,7 @@ def get_hon_sample(coords, labels, verbose=1):
         print('Changing Look AGN- Hon et al 2022: ',len(CLQ['RA']))
 
 #yang et al., 2018
-def get_yang_sample(coords, labels, verbose=1):
+def get_yang_sample(coords, labels, *, verbose=1):
     """Automatically grabs changing look AGN from yang et al., 2018 sample.
 
     Parameters
@@ -269,7 +269,7 @@ def get_yang_sample(coords, labels, verbose=1):
 #Here are additional CLAGN samples
 #but not spectroscopically confirmed
 #Sanchez Saez et al., 2021
-def get_sanchezsaez_sample(coords, labels, verbose=1):
+def get_sanchezsaez_sample(coords, labels, *, verbose=1):
     """Automatically grabs changing look AGN from Sanchez Saez et al., 2021 sample.
 
     Parameters
@@ -292,7 +292,7 @@ def get_sanchezsaez_sample(coords, labels, verbose=1):
         print('Changing Look AGN- Sanchez et al: ',len(CSAGN['RA']))
 
 #Graham et al., 2019
-def get_graham_sample(coords, labels, verbose=1):
+def get_graham_sample(coords, labels, *, verbose=1):
     """Automatically grabs changing look AGN from Graham et al., 2019  sample.
 
     Parameters
@@ -343,7 +343,7 @@ def get_TDE_sample(coords, labels, *, object_ids, verbose=1):
 
 #SDSS QSO sample of any desired number
 #These are "normal" QSOs to use in the classifier
-def get_SDSS_sample(coords, labels, num, verbose=1):
+def get_SDSS_sample(coords, labels, *, num, verbose=1):
     """Automatically grabs SDSS quasar sample.
 
     Parameters
@@ -376,7 +376,8 @@ def get_SDSS_sample(coords, labels, num, verbose=1):
     if verbose:
         print('SDSS Quasar: '+str(num))
 
-def get_paper_sample(paper_link,label,coords,labels,verbose=1):
+
+def get_paper_sample(coords, labels, *, paper_link, label, verbose=1):
     """Looks for RA,DEC in a paper using Ned query and returns list of coords and lables
 
     Parameters
