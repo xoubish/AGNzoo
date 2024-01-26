@@ -1,4 +1,5 @@
 import multiprocessing as mp
+import os
 import re
 
 import astropy.units as u
@@ -198,7 +199,7 @@ def load_lightcurves(locations_df, nworkers=6, chunksize=100):
         chunksize = len(location_grps) // nworkers + 1
 
     # start a pool of background processes to load data in parallel
-    with mp.Pool(nworkers) as pool:
+    with mp.Pool(nworkers, initializer=_init_worker) as pool:
         lightcurves = []
         # use imap because it's lazier than map and can reduce memory usage for long iterables
         # use unordered because we don't care about the order in which results are returned
@@ -315,3 +316,8 @@ def transform_lightcurves(ztf_df):
     ztf_df["err"] = (fluxupper - fluxlower) / 2
 
     return ztf_df
+
+
+def _init_worker():
+    # print the Process ID for the current worker so it can be killed if needed
+    print(f"[pid={os.getpid()}] Starting worker", flush=True)
