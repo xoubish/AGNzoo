@@ -1,7 +1,6 @@
 from requests.exceptions import ConnectionError
 
 import astropy.units as u
-import numpy as np
 from alerce.core import Alerce
 from astropy.coordinates import SkyCoord
 from astropy.table import Table, join, join_skycoord, unique
