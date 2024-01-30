@@ -41,8 +41,6 @@ bag:
       - ZTF18aahqkbt
     get_papers_sample_kwargs:
       paper_kwargs:
-      - label: FermiBL
-        paper_link: 2015ApJ...810...14A
       - label: Cicco19
         paper_link: 2019A&A...627A..33D
   # Mission options
