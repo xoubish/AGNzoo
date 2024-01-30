@@ -142,6 +142,7 @@ def _build_lightcurves(
 
     _init_worker(job_name=f"build=lightcurves, mission={mission}")
     parquet_filepath = parquet_dirpath / f"mission={mission}/part0.snappy.parquet"
+    parquet_filepath.parent.mkdir(parents=True, exist_ok=True)
 
     # if a sample file currently exists and the user elected not to overwrite, just return it
     if parquet_filepath.is_file() and not overwrite_existing_data:
@@ -235,6 +236,10 @@ def _construct_kwargs_dict(*, kwargs_yaml=None, kwargs_dict=dict()):
     # update with kwargs from dict
     my_kwargs_dict.update(kwargs_dict)
 
+    # handle sample and mission kwargs
+    my_kwargs_dict.update(_construct_sample_kwargs(my_kwargs_dict))
+    my_kwargs_dict.update(_construct_mission_kwargs(my_kwargs_dict))
+
     # construct and add paths
     base_dir = BULK_RUN_DIR.parent.parent / f"output/lightcurves-{my_kwargs_dict['run_id']}"
     base_dir.mkdir(parents=True, exist_ok=True)
@@ -242,10 +247,6 @@ def _construct_kwargs_dict(*, kwargs_yaml=None, kwargs_dict=dict()):
     my_kwargs_dict['sample_filepath'] = base_dir / my_kwargs_dict['sample_filename']
     my_kwargs_dict["parquet_dirpath"] = base_dir /  my_kwargs_dict["parquet_dataset_name"]
     
-    # handle sample and mission kwargs
-    my_kwargs_dict.update(_construct_sample_kwargs(my_kwargs_dict))
-    my_kwargs_dict.update(_construct_mission_kwargs(my_kwargs_dict))
-
     # sort the kwargs by key and return
     return {key: my_kwargs_dict[key] for key in sorted(my_kwargs_dict)}
 
