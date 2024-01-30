@@ -1,17 +1,31 @@
 import argparse
-
-# import json
-import yaml
+import os
 import sys
-from astropy.table import Table
-from pathlib import Path
 from fractions import Fraction
+from pathlib import Path
+
+import yaml
+from astropy.table import Table
 
 sys.path.append("../code_src/")
 # Lazy-load all other imports to avoid depending on modules that will not actually be used.
 
 KWARG_DEFAULTS_YAML = "../bulk_light_curve_generators/helpers_kwargs_defaults.yml"
-KWARG_OPTIONS_YAML = "../bulk_light_curve_generators/_helpers_kwargs_options.yml"
+
+
+def run(build, *, kwargs_yaml=None, **kwargs_dict):
+    my_kwargs_dict = _construct_kwargs_dict(kwargs_yaml=kwargs_yaml, kwargs_dict=kwargs_dict)
+
+    if build == "sample":
+        return _build_sample(**my_kwargs_dict)
+
+    if build == "lightcurves":
+        return _build_lightcurves(**my_kwargs_dict)
+
+    return _build_other(keyword=build, kwargs_dict=my_kwargs_dict)
+
+
+# ---- build functions ----
 
 
 def _build_sample(
@@ -19,8 +33,7 @@ def _build_sample(
     literature_names,
     consolidate_nearby_objects,
     get_sample_kwargs,
-    base_dir,
-    sample_filename,
+    sample_filepath,
     overwrite_existing_sample,
     **extra_kwargs,
 ):
@@ -54,7 +67,7 @@ def _build_sample(
 
     import sample_selection
 
-    sample_filepath = Path(base_dir + "/" + sample_filename)
+    _init_worker(job_name="_build_sample")
     sample_filepath.parent.mkdir(parents=True, exist_ok=True)
 
     # if a sample file currently exists and the user elected not to overwrite, just return it
@@ -62,12 +75,10 @@ def _build_sample(
         print(f"Using existing object sample at: {sample_filepath}", flush=True)
         return Table.read(sample_filepath, format="ascii.ecsv")
 
-    # else fetch the sample
-    if literature_names == "core":
-        literature_names = _load_yaml(KWARG_OPTIONS_YAML)["literature_names_core"]
+    # else continue fetching the sample
     print(f"Building object sample from literature: {literature_names}", flush=True)
 
-    # create list of tuples, (get-sample function, kwargs dict)
+    # create list of tuples: (get-sample function, kwargs dict)
     get_sample_functions = [
         (getattr(sample_selection, f"get_{name}_sample"), get_sample_kwargs.get(name, {}))
         for name in literature_names
@@ -93,9 +104,8 @@ def _build_lightcurves(
     *,
     mission,
     mission_kwargs,
-    base_dir,
-    sample_filename,
-    parquet_dataset_name,
+    sample_filepath,
+    parquet_dir,
     overwrite_existing_data,
     **extra_kwargs,
 ):
@@ -122,14 +132,8 @@ def _build_lightcurves(
         Light curves. This function also writes the light curves to a Parquet file.
     """
 
-    import astropy.units as u
-
-    print(f"Building lightcurves from mission: {mission}.", flush=True)
-
-    sample_filepath = base_dir + "/" + sample_filename
-    parquet_filepath = Path(
-        f"{base_dir}/{parquet_dataset_name}/mission={mission}/part0.snappy.parquet"
-    )
+    _init_worker(job_name=f"_build_lightcurves: {mission}")
+    parquet_filepath = Path(f"{parquet_dir}/mission={mission}/part0.snappy.parquet")
     parquet_filepath.parent.mkdir(parents=True, exist_ok=True)
 
     # if a sample file currently exists and the user elected not to overwrite, just return it
@@ -142,122 +146,75 @@ def _build_lightcurves(
 
     # else load the sample and fetch the light curves
     sample_table = Table.read(sample_filepath, format="ascii.ecsv")
-    # arcsec = 1.0 * u.arcsec  # search radius
-
-    # get dict of keyword arguments
-    mission_low = mission.lower()
-    mission_kwargs_tmp = _load_yaml(KWARG_DEFAULTS_YAML)["missions_kwargs"].get(mission_low, {})
-    mission_kwargs_tmp.update(**mission_kwargs)
-    # convert radius to float
-    my_mission_kwargs = {
-        key: (float(Fraction(val)) if key.endswith("radius") else val)
-        for key, val in mission_kwargs_tmp.items()
-    }
 
     # Query the mission's archive and load light curves.
-    # We need to know which mission we're doing so that we can send the correct args.
-    if mission_low == "gaia":
+    # [TODO] uniformize module and function names so that we can do this with getattr (like _build_sample)
+    # instead of checking for every mission individually.
+    if mission.lower() == "gaia":
         from gaia_functions import Gaia_get_lightcurve
+        lightcurve_df = Gaia_get_lightcurve(sample_table, **mission_kwargs)
 
-        # my_mission_kwargs["search_radius"] = float(my_mission_kwargs["search_radius"])
-        lightcurve_df = Gaia_get_lightcurve(sample_table, **my_mission_kwargs)
-
-    elif mission_low == "heasarc":
+    elif mission.lower() == "heasarc":
         from heasarc_functions import HEASARC_get_lightcurves
+        lightcurve_df = HEASARC_get_lightcurves(sample_table, **mission_kwargs)
 
-        # heasarc_catalogs = {"FERMIGTRIG": "1.0", "SAXGRBMGRB": "3.0"}
-        lightcurve_df = HEASARC_get_lightcurves(sample_table, **my_mission_kwargs)
-
-    elif mission_low == "hcv":
+    elif mission.lower() == "hcv":
         from HCV_functions import HCV_get_lightcurves
+        lightcurve_df = HCV_get_lightcurves(sample_table, **mission_kwargs)
 
-        # my_mission_kwargs["radius"] = float(my_mission_kwargs["radius"])
-        # lightcurve_df = HCV_get_lightcurves(sample_table, arcsec.to_value("deg"))
-        lightcurve_df = HCV_get_lightcurves(sample_table, **my_mission_kwargs)
-
-    elif mission_low == "icecube":
+    elif mission.lower() == "icecube":
         from icecube_functions import Icecube_get_lightcurve
+        lightcurve_df = Icecube_get_lightcurve(sample_table, **mission_kwargs)
 
-        # icecube_select_topN = 3
-        lightcurve_df = Icecube_get_lightcurve(sample_table, **my_mission_kwargs)
-
-    elif mission_low == "panstarrs":
+    elif mission.lower() == "panstarrs":
         from panstarrs import Panstarrs_get_lightcurves
+        lightcurve_df = Panstarrs_get_lightcurves(sample_table, **mission_kwargs)
 
-        # lightcurve_df = Panstarrs_get_lightcurves(sample_table, arcsec.to_value("deg"))
-        lightcurve_df = Panstarrs_get_lightcurves(sample_table, **my_mission_kwargs)
-
-    elif mission_low == "tess_kepler":
+    elif mission.lower() == "tess_kepler":
         from TESS_Kepler_functions import TESS_Kepler_get_lightcurves
+        lightcurve_df = TESS_Kepler_get_lightcurves(sample_table, **mission_kwargs)
 
-        # lightcurve_df = TESS_Kepler_get_lightcurves(sample_table, arcsec.value)
-        lightcurve_df = TESS_Kepler_get_lightcurves(sample_table, **my_mission_kwargs)
-
-    elif mission_low == "wise":
+    elif mission.lower() == "wise":
         from WISE_functions import WISE_get_lightcurves
+        lightcurve_df = WISE_get_lightcurves(sample_table, **mission_kwargs)
 
-        my_mission_kwargs["radius"] = my_mission_kwargs["radius"] * u.arcsec
-        # bandlist = ["W1", "W2"]
-        # lightcurve_df = WISE_get_lightcurves(sample_table, arcsec, bandlist)
-        lightcurve_df = WISE_get_lightcurves(sample_table, **my_mission_kwargs)
-
-    elif mission_low == "ztf":
+    elif mission.lower() == "ztf":
         from ztf_functions import ZTF_get_lightcurve
-
-        my_mission_kwargs["match_radius"] = my_mission_kwargs["match_radius"] * u.deg
-        # ztf_nworkers = 8
-        # lightcurve_df = ZTF_get_lightcurve(sample_table, ztf_nworkers)
-        lightcurve_df = ZTF_get_lightcurve(sample_table, **my_mission_kwargs)
+        lightcurve_df = ZTF_get_lightcurve(sample_table, **mission_kwargs)
 
     else:
         raise ValueError(f"Unknown mission '{mission}'")
 
+    # save and return the light curve data
     lightcurve_df.data.to_parquet(parquet_filepath)
     print(f"Light curves saved to: {parquet_filepath}", flush=True)
     return lightcurve_df
 
 
-def _build_other(keyword, kwargs_yaml):
-    kwarg_options = _load_yaml(kwargs_yaml) if kwargs_yaml else _load_yaml(KWARG_OPTIONS_YAML)
-    kwarg_options.update(_load_yaml(KWARG_DEFAULTS_YAML))
-
+def _build_other(keyword, **kwargs_dict):
     # if this was called from the command line, we need to print the value so it can be captured by the script
     # this is indicated by a "+" flag appended to the keyword
     print_scalar, print_list = keyword.endswith("+"), keyword.endswith("+l")
     keyword = keyword.strip("+l").strip("+")
 
-    if keyword == "base_dir":
-        basedir = kwarg_options.get("base_dir")
-        # sample_file = basedir + "/" + kwarg_options.get('sample_filename')
-        # parquet_dir = basedir + "/" + kwarg_options.get('parquet_dataset_name')
-        # other = [basedir, sample_file, parquet_dir]
-        other = basedir
-    else:
-        other = kwarg_options[keyword]
+    # if keyword == "sample_filepath":
+    #     other = my_kwargs_dict["base_dir"] + "/" + my_kwargs_dict['sample_filename']
+    # elif keyword == "parquet_dir":
+    #     other = my_kwargs_dict["base_dir"] + "/" + my_kwargs_dict["parquet_dataset_name"]
+    # else:
+    #     other = my_kwargs_dict.get(keyword)
+
+    value = kwargs_dict.get(keyword)
 
     if print_scalar:
-        print(other)
+        print(value)
     if print_list:
-        print(" ".join(other))
+        print(" ".join(value))
 
-    return other
+    return value
 
 
-def run(build, *, kwargs_yaml=None, **kwargs_dict):
-    if build not in ["sample", "lightcurves"]:
-        return _build_other(keyword=build, kwargs_yaml=kwargs_yaml)
-
-    my_kwargs = _load_yaml(KWARG_DEFAULTS_YAML)
-    if kwargs_yaml:
-        kwargs_dict.update(_load_yaml(kwargs_yaml))
-    my_kwargs.update(kwargs_dict)
-
-    if build == "sample":
-        return _build_sample(**my_kwargs)
-
-    if build == "lightcurves":
-        mission_kwargs = my_kwargs["missions_kwargs"].get(my_kwargs["mission"], {})
-        return _build_lightcurves(**my_kwargs, mission_kwargs=mission_kwargs)
+# ---- utils ----
 
 
 def _load_yaml(fyaml):
@@ -266,26 +223,76 @@ def _load_yaml(fyaml):
     return kwargs
 
 
+def _construct_kwargs_dict(*, kwargs_yaml=None, kwargs_dict=dict()):
+    """Construct a complete kwargs dict by combining `kwargs_dict`, `kwargs_yaml`, and `KWARG_DEFAULTS_YAML`
+    (listed in order of precedence).
+    """
+    # load defaults
+    my_kwargs_dict = _load_yaml(KWARG_DEFAULTS_YAML)
+    # load and add kwargs from yaml file
+    my_kwargs_dict.update(_load_yaml(kwargs_yaml) if kwargs_yaml else {})
+    # add kwargs from dict
+    my_kwargs_dict.update(kwargs_dict)
+
+    # expand a literature_names shortcut
+    if my_kwargs_dict['literature_names'] == "core":
+        my_kwargs_dict['literature_names'] = my_kwargs_dict["literature_names_core"]
+
+    # construct and add base_dir, sample_filepath, and parquet_dir
+    base_dir = my_kwargs_dict["base_dir_stub"] + "-" + my_kwargs_dict["run_id"]
+    my_kwargs_dict["base_dir"] = base_dir
+    my_kwargs_dict['sample_filepath'] = Path(base_dir + "/" + my_kwargs_dict['sample_filename'])
+    my_kwargs_dict["parquet_dir"] = Path(base_dir + "/" + my_kwargs_dict["parquet_dataset_name"])
+
+    # handle mission_kwargs
+    my_kwargs_dict["mission_kwargs"] = _construct_mission_kwargs(my_kwargs_dict)
+
+    return {key: my_kwargs_dict[key] for key in sorted(my_kwargs_dict)}
+
+
+def _construct_mission_kwargs(kwargs_dict):
+    """Construct mission_kwargs from kwargs_dict."""
+    mission = kwargs_dict.get("mission", "").lower()
+    # get default mission_kwargs
+    default_mission_kwargs = kwargs_dict["mission_kwargs_all"].get(mission, {})
+    # update with passed-in values
+    default_mission_kwargs.update(kwargs_dict.get("mission_kwargs", {}))
+
+    # convert radius to a float
+    mission_kwargs = {
+        key: (float(Fraction(val)) if key.endswith("radius") else val)
+        for key, val in default_mission_kwargs.items()
+    }
+
+    # convert radius to an astropy Quantity if needed
+    if mission in ["wise", "ztf"]:
+        import astropy.units as u
+
+        radius, unit = tuple(["radius", u.arcsec] if mission == "wise" else ["match_radius", u.deg])
+        mission_kwargs[radius] = mission_kwargs[radius] * unit
+
+    return mission_kwargs
+
+
+def _init_worker(job_name="worker"):
+    """Run generic start-up tasks for a job."""
+    # print the Process ID for the current worker so it can be killed if needed
+    print(f"[pid={os.getpid()}] Starting {job_name}", flush=True)
+
+
+# ---- helpers for __name__ == "__main__" ----
+
+
 def _run_main(args_list):
     """Run the function to build either the object sample or the light curves.
 
     Parameters
     ----------
-    args : argparse.Namespace
+    args_list : list
         Arguments submitted from the command line.
     """
     args = _parse_args(args_list)
-    # print('EXTRA ', args.extra_kwargs)
-    # parse extra kwargs into a dict, then convert true/false to bool
-    kwargs_dict_tmp = {kwarg.split("=")[0]: kwarg.split("=")[1] for kwarg in args.extra_kwargs}
-    kwargs_dict = {
-        key: (bool(val) if val.lower() in ["true", "false"] else val)
-        for (key, val) in kwargs_dict_tmp.items()
-    }
-
-    # print('DICT ', kwargs_dict)
-    # run(args.build, kwargs_yaml=args.kwargs_yaml, mission=args.mission)
-    run(args.build, kwargs_yaml=args.kwargs_yaml, kwargs_dict=kwargs_dict)
+    run(args.build, kwargs_yaml=args.kwargs_yaml, kwargs_dict=args.extra_kwargs)
 
 
 def _parse_args(args_list):
@@ -303,20 +310,39 @@ def _parse_args(args_list):
         default="../bulk_light_curve_generators/helpers_kwargs_defaults.yml",
         help="Path to a yaml file containing the function keyword arguments to be used.",
     )
-    # parser.add_argument(
-    #     "--mission", type=str, default=None, help="Mission name to query for light curves."
-    # )
     parser.add_argument(
-        # "--extra_kwargs", type=str, default=list(), help="."
         "--extra_kwargs",
         type=str,
         default=list(),
         nargs="*",
-        help=".",
+        help="Kwargs to be added to kwargs_yaml. If the same key is provided both places, this takes precedence.",
+    )
+    parser.add_argument(
+        # this is separate for convenience and will be added to extra_kwargs if provided
+        "--mission",
+        type=str,
+        default=None,
+        help="Mission name to query for light curves.",
     )
 
-    # parse the script arguments
-    return parser.parse_args(args_list)
+    # parse and return the script arguments
+    args = parser.parse_args(args_list)
+    args.extra_kwargs = _parse_extra_kwargs(args)
+    return args
+
+
+def _parse_extra_kwargs(args):
+    # parse extra kwargs into a dict
+    extra_kwargs_tmp = {kwarg.split("=")[0]: kwarg.split("=")[1] for kwarg in args.extra_kwargs}
+    # convert true/false to bool
+    extra_kwargs = {
+        key: (bool(val) if val.lower() in ["true", "false"] else val) for (key, val) in extra_kwargs_tmp.items()
+    }
+    # add the mission, if provided
+    if args.mission:
+        extra_kwargs["mission"] = args.mission
+    return extra_kwargs
+
 
 
 if __name__ == "__main__":
