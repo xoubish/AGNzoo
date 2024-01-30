@@ -7,7 +7,8 @@ from pathlib import Path
 import yaml
 from astropy.table import Table
 
-# sys.path.append("../code_src/")
+BULK_RUN_DIR = Path(__file__).parent
+# sys.path.append(BULK_RUN_DIR.parent)
 # Lazy-load all other imports to avoid depending on modules that will not actually be used.
 
 # load default kwargs from yaml files
@@ -17,8 +18,8 @@ def _load_yaml(yaml_file):
     return yaml_dict
 
 
-KWARG_DEFAULTS = _load_yaml(Path(__file__).parent / "helpers_kwargs_defaults.yml")
-KWARG_DEFAULTS_ALL = _load_yaml(Path(__file__).parent / "helpers_kwargs_defaults_all.yml")
+KWARG_DEFAULTS = _load_yaml(BULK_RUN_DIR / "helper_kwargs_defaults.yml")
+KWARG_DEFAULTS_ALL = _load_yaml(BULK_RUN_DIR / "helper_kwargs_defaults_all.yml")
 
 
 def run(*, build, kwargs_yaml=None, **kwargs_dict):
@@ -74,8 +75,7 @@ def _build_sample(
 
     import sample_selection
 
-    _init_worker(job_name="_build_sample")
-    sample_filepath.parent.mkdir(parents=True, exist_ok=True)
+    _init_worker(job_name="build=sample")
 
     # if a sample file currently exists and the user elected not to overwrite, just return it
     if sample_filepath.is_file() and not overwrite_existing_sample:
@@ -113,7 +113,7 @@ def _build_lightcurves(
     mission,
     mission_kwargs,
     sample_filepath,
-    parquet_dir,
+    parquet_dirpath,
     overwrite_existing_data,
     **extra_kwargs,
 ):
@@ -140,9 +140,8 @@ def _build_lightcurves(
         Light curves. This function also writes the light curves to a Parquet file.
     """
 
-    _init_worker(job_name=f"_build_lightcurves: {mission}")
-    parquet_filepath = Path(f"{parquet_dir}/mission={mission}/part0.snappy.parquet")
-    parquet_filepath.parent.mkdir(parents=True, exist_ok=True)
+    _init_worker(job_name=f"build=lightcurves, mission={mission}")
+    parquet_filepath = parquet_dirpath / f"mission={mission}/part0.snappy.parquet"
 
     # if a sample file currently exists and the user elected not to overwrite, just return it
     if parquet_filepath.is_file() and not overwrite_existing_data:
@@ -207,7 +206,7 @@ def _build_other(keyword, **kwargs_dict):
 
     # if keyword == "sample_filepath":
     #     other = my_kwargs_dict["base_dir"] + "/" + my_kwargs_dict['sample_filename']
-    # elif keyword == "parquet_dir":
+    # elif keyword == "parquet_dirpath":
     #     other = my_kwargs_dict["base_dir"] + "/" + my_kwargs_dict["parquet_dataset_name"]
     # else:
     #     other = my_kwargs_dict.get(keyword)
@@ -237,10 +236,11 @@ def _construct_kwargs_dict(*, kwargs_yaml=None, kwargs_dict=dict()):
     my_kwargs_dict.update(kwargs_dict)
 
     # construct and add paths
-    base_dir = my_kwargs_dict["base_dir_stub"] + "-" + my_kwargs_dict["run_id"]
+    base_dir = BULK_RUN_DIR.parent.parent / f"output/lightcurves-{my_kwargs_dict['run_id']}"
+    base_dir.mkdir(parents=True, exist_ok=True)
     my_kwargs_dict["base_dir"] = base_dir
-    my_kwargs_dict['sample_filepath'] = Path(base_dir + "/" + my_kwargs_dict['sample_filename'])
-    my_kwargs_dict["parquet_dir"] = Path(base_dir + "/" + my_kwargs_dict["parquet_dataset_name"])
+    my_kwargs_dict['sample_filepath'] = base_dir / my_kwargs_dict['sample_filename']
+    my_kwargs_dict["parquet_dirpath"] = base_dir /  my_kwargs_dict["parquet_dataset_name"]
     
     # handle sample and mission kwargs
     my_kwargs_dict.update(_construct_sample_kwargs(my_kwargs_dict))
@@ -306,7 +306,7 @@ def _run_main(args_list):
         Arguments submitted from the command line.
     """
     args = _parse_args(args_list)
-    run(args.build, kwargs_yaml=args.kwargs_yaml, kwargs_dict=args.extra_kwargs)
+    run(build=args.build, kwargs_yaml=args.kwargs_yaml, kwargs_dict=args.extra_kwargs)
 
 
 def _parse_args(args_list):
@@ -316,12 +316,12 @@ def _parse_args(args_list):
         "--build",
         type=str,
         default="sample",
-        help="Either 'sample', 'lightcurves', or a key in _helpers_kwargs_options.yml",
+        help="Either 'sample', 'lightcurves', or a kwargs key.",
     )
     parser.add_argument(
         "--kwargs_yaml",
         type=str,
-        default="../bulk_light_curve_generators/helpers_kwargs_defaults.yml",
+        default="../bulk_light_curve_generators/helper_kwargs_defaults.yml",
         help="Path to a yaml file containing the function keyword arguments to be used.",
     )
     parser.add_argument(
