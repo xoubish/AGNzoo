@@ -19,7 +19,6 @@ def _load_yaml(yaml_file):
 
 
 KWARG_DEFAULTS = _load_yaml(BULK_RUN_DIR / "helper_kwargs_defaults.yml")
-KWARG_DEFAULTS_ALL = _load_yaml(BULK_RUN_DIR / "helper_kwargs_defaults_all.yml")
 
 
 def run(*, build, kwargs_yaml=None, **kwargs_dict):
@@ -253,13 +252,13 @@ def _construct_kwargs_dict(*, kwargs_yaml=None, kwargs_dict=dict()):
 def _construct_sample_kwargs(kwargs_dict):
     """Construct sample kwargs from kwargs_dict plus defaults."""
     # get defaults for get_*_sample functions
-    my_sample_kwargs = KWARG_DEFAULTS_ALL['get_sample_kwargs_all']
+    my_sample_kwargs = KWARG_DEFAULTS['bag']['get_sample_kwargs_all']
     # update with passed-in dict
     my_sample_kwargs.update(kwargs_dict)
 
     # expand a literature_names shortcut
     if my_sample_kwargs['literature_names'] == "all":
-        my_sample_kwargs['literature_names'] = KWARG_DEFAULTS_ALL["literature_names_all"]
+        my_sample_kwargs['literature_names'] = KWARG_DEFAULTS['bag']["literature_names_all"]
     
     return my_sample_kwargs
     
@@ -268,7 +267,7 @@ def _construct_mission_kwargs(kwargs_dict):
     """Construct mission_kwargs from kwargs_dict plus defaults."""
     mission = kwargs_dict.get("mission", "").lower()
     # get default mission_kwargs
-    default_mission_kwargs = KWARG_DEFAULTS_ALL["mission_kwargs_all"].get(mission, {})
+    default_mission_kwargs = KWARG_DEFAULTS['bag']["mission_kwargs_all"].get(mission, {})
     # update with passed-in values
     default_mission_kwargs.update(kwargs_dict.get("mission_kwargs", {}))
 
