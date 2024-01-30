@@ -140,7 +140,7 @@ print_usage(){
 
 # ---- Set variable defaults.
 mission_names=(core)
-yaml=helpers_kwargs_defaults.yml
+yaml=helper_kwargs_defaults.yml
 extra_kwargs=()
 kill_all_processes=false
 
@@ -168,10 +168,10 @@ while getopts r:m:y:e:hik flag; do
 done
 # expand a mission_names shortcut value.
 if [ "${mission_names[0]}" == "all" ]; then
-    mission_names=($( python helpers.py --build mission_names_all+l ))
+    mission_names=($( python helper.py --build mission_names_all+l ))
 fi
 if [ "${mission_names[0]}" == "core" ]; then
-    mission_names=($( python helpers.py --build mission_names_core+l ))
+    mission_names=($( python helper.py --build mission_names_core+l ))
 fi
 
 # If a run_id was not supplied, exit.
@@ -182,8 +182,8 @@ if [ -z ${run_id+x} ]; then
 fi
 
 # ---- Construct file paths.
-base_dir=$(python helpers.py --build base_dir+ --kwargs_yaml $yaml --extra_kwargs ${extra_kwargs[@]})
-parquet_dir=$(python helpers.py --build parquet_dir+ --kwargs_yaml $yaml --extra_kwargs ${extra_kwargs[@]})
+base_dir=$(python helper.py --build base_dir+ --kwargs_yaml $yaml --extra_kwargs ${extra_kwargs[@]})
+parquet_dir=$(python helper.py --build parquet_dir+ --kwargs_yaml $yaml --extra_kwargs ${extra_kwargs[@]})
 logsdir="${base_dir}/logs"
 mkdir -p $logsdir
 mylogfile="${logsdir}/$(basename $0).log"
@@ -213,7 +213,7 @@ logfile="${logsdir}/get_sample.log"
 logfiles+=("$logfile")
 echo
 echo "Build sample is starting. logfile=${logfile}"
-python helpers.py --build sample \
+python helper.py --build sample \
     --kwargs_yaml $yaml \
     --extra_kwargs ${extra_kwargs[@]} \
     > ${logfile} 2>&1
@@ -226,7 +226,7 @@ echo "Mission archive calls are starting."
 for mission in ${mission_names[@]}; do
     logfile="${logsdir}/${mission}.log"
     logfiles+=("$logfile")
-    nohup python helpers.py --build lightcurves \
+    nohup python helper.py --build lightcurves \
         --kwargs_yaml $yaml \
         --extra_kwargs ${extra_kwargs[@]} \
         --mission $mission \
