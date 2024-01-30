@@ -139,45 +139,19 @@ print_usage(){
 }
 
 # ---- Set variable defaults.
-# literature_names=(yang SDSS)
-# literature_names_all=(green hon lamassa lopeznavas lyu macleod16 macleod19 ruan papers sheng SDSS TDE yang)
-# consolidate_nearby_objects=true
-# get_sample_kwargs='{"SDSS": {"num": 10}}'
-mission_names=core
-# mission_names=(gaia heasarc icecube wise ztf)
-# mission_names_core=(gaia heasarc icecube wise ztf)
-# mission_names_all=(gaia heasarc hcv icecube panstarrs tess_kepler wise ztf)
-# sample_filename=object_sample.ecsv
-# use_existing_sample=false
-# parquet_dataset_name=lightcurves.parquet
+mission_names=(core)
 yaml=helpers_kwargs_defaults.yml
 extra_kwargs=()
 kill_all_processes=false
 
 # ---- Set variables that were passed in as script arguments.
 # info about getopts: https://www.computerhope.com/unix/bash/getopts.htm#examples
-# while getopts r:l:c:g:m:o:u:p:hik flag; do
 while getopts r:m:y:e:hik flag; do
     case $flag in
-        r) run_id=$OPTARG;;
-        # l) literature_names=("$OPTARG")
-        #     if [ "${literature_names[0]}" == "all" ]; then
-        #         literature_names=("${literature_names_all[@]}")
-        #     fi
-        #     ;;
-        # c) consolidate_nearby_objects=$OPTARG;;
-        # g) get_sample_kwargs=$OPTARG;;
-        m) mission_names=("$OPTARG")
-            if [ "${mission_names[0]}" == "all" ]; then
-                mission_names=($( python helpers.py --build mission_names_all+l ))
-            fi
-            if [ "${mission_names[0]}" == "core" ]; then
-                mission_names=($( python helpers.py --build mission_names_core+l ))
-            fi
+        r) run_id=$OPTARG
+            extra_kwargs+=("run_id=${OPTARG}")
             ;;
-        # o) sample_filename=$OPTARG;;
-        # u) use_existing_sample=$OPTARG;;
-        # p) parquet_dataset_name=$OPTARG;;
+        m) mission_names=("$OPTARG");;
         y) yaml=$OPTARG;;
         h) print_usage
             exit 0
@@ -192,8 +166,13 @@ while getopts r:m:y:e:hik flag; do
             ;;
       esac
 done
-
-# echo ${extra_kwargs[@]}
+# expand a mission_names shortcut value.
+if [ "${mission_names[0]}" == "all" ]; then
+    mission_names=($( python helpers.py --build mission_names_all+l ))
+fi
+if [ "${mission_names[0]}" == "core" ]; then
+    mission_names=($( python helpers.py --build mission_names_core+l ))
+fi
 
 # If a run_id was not supplied, exit.
 if [ -z ${run_id+x} ]; then
@@ -203,12 +182,9 @@ if [ -z ${run_id+x} ]; then
 fi
 
 # ---- Construct file paths.
-basedir=$(python helpers.py --build base_dir+ --kwargs_yaml $yaml)
-# paths=($( python helpers.py --build base_dir+l --kwargs_yaml $yaml ))
-# basedir=${paths[0]}
-# sample_filepath=${paths[1]}
-# parquet_dataset_path=${paths[2]}
-logsdir="${basedir}/logs"
+base_dir=$(python helpers.py --build base_dir+ --kwargs_yaml $yaml --extra_kwargs ${extra_kwargs[@]})
+parquet_dir=$(python helpers.py --build parquet_dir+ --kwargs_yaml $yaml --extra_kwargs ${extra_kwargs[@]})
+logsdir="${base_dir}/logs"
 mkdir -p $logsdir
 mylogfile="${logsdir}/$(basename $0).log"
 logfiles=("$mylogfile")
@@ -227,7 +203,7 @@ echo "**                          Run starting.                          **"
 echo "**                                                                 **"
 echo
 echo "run_id=${run_id}"
-echo "output_dir=${basedir}"
+echo "output_dir=${base_dir}"
 echo "This script output will also be written to logfile=${mylogfile}"
 
 # ---- Do the run. ---- #
@@ -237,11 +213,9 @@ logfile="${logsdir}/get_sample.log"
 logfiles+=("$logfile")
 echo
 echo "Build sample is starting. logfile=${logfile}"
-python helpers.py --build sample --kwargs_yaml $yaml --extra_kwargs ${extra_kwargs[@]} \
-    # --literature_names ${literature_names[@]} \
-    # --consolidate_nearby_objects $consolidate_nearby_objects \
-    # --get_sample_kwargs "${get_sample_kwargs}" \
-    # --sample_filename $sample_filepath \
+python helpers.py --build sample \
+    --kwargs_yaml $yaml \
+    --extra_kwargs ${extra_kwargs[@]} \
     > ${logfile} 2>&1
 echo "Build sample is done. Printing the log for convenience:"
 print_logs $logfile
@@ -250,21 +224,20 @@ print_logs $logfile
 echo
 echo "Mission archive calls are starting."
 for mission in ${mission_names[@]}; do
-    extra_kwargs+=("mission=${mission}")
     logfile="${logsdir}/${mission}.log"
     logfiles+=("$logfile")
-    nohup python helpers.py --build lightcurves --kwargs_yaml $yaml --extra_kwargs ${extra_kwargs[@]} \
-        # --mission ${mission} \
-        # --sample_filename ${sample_filepath} \
-        # --parquet_dataset_name ${parquet_dataset_path} \
+    nohup python helpers.py --build lightcurves \
+        --kwargs_yaml $yaml \
+        --extra_kwargs ${extra_kwargs[@]} \
+        --mission $mission \
         > ${logfile} 2>&1 &
-    echo "[pid=${!}] ${mission} started. logfile=${logfile}"
+    echo "${mission} logfile=${logfile}"
 done
 
 # ---- 3: Print some instructions for the user, then exit.
 echo
 echo "Light curves are being loaded in background processes. PIDs are listed above."
-echo "Once loaded, data will be written to a parquet dataset. parquet_dir=${parquet_dataset_path}"
+echo "Once loaded, data will be written to a parquet dataset. parquet_dir=${parquet_dir}"
 print_help_run_instructions
 echo
 echo "**                       Main script exiting.                       **"
