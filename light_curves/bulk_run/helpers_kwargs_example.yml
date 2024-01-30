@@ -1,20 +1,20 @@
 literature_names:
-  # - yang
+  - yang
   # - SDSS
-  - TDE
-  - papers
+  # - TDE
+  # - papers
 get_sample_kwargs:
   SDSS:
     num: 10
   TDE:
     object_ids:
     - ZTF18aabtxvd
-    # - ZTF18aahqkbt
+    - ZTF18aahqkbt
   papers:
     paper_kwargs:
     - label: FermiBL
       paper_link: 2015ApJ...810...14A
-    # - label: Cicco19
-    #   paper_link: 2019A&A...627A..33D
+    - label: Cicco19
+      paper_link: 2019A&A...627A..33D
 # consolidate_nearby_objects: False
 
