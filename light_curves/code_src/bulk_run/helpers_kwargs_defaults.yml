@@ -1,0 +1,18 @@
+run_id: my_run
+base_dir_stub: ../output/lightcurves  # base_dir will be "{base_dir_stub}-{run_id}"
+# Sample options
+literature_names:
+  - yang
+  - SDSS
+get_SDSS_sample_kwargs:
+  num: 10
+consolidate_nearby_objects: True
+sample_filename: object_sample.ecsv
+overwrite_existing_sample: False
+# Mission options
+mission: gaia
+mission_kwargs:
+  search_radius: 1/3600  # deg
+  verbose: 0
+parquet_dataset_name: lightcurves.parquet
+overwrite_existing_data: True

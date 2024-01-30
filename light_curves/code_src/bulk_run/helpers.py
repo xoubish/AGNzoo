@@ -7,13 +7,21 @@ from pathlib import Path
 import yaml
 from astropy.table import Table
 
-sys.path.append("../code_src/")
+# sys.path.append("../code_src/")
 # Lazy-load all other imports to avoid depending on modules that will not actually be used.
 
-KWARG_DEFAULTS_YAML = "../bulk_light_curve_generators/helpers_kwargs_defaults.yml"
+# load default kwargs from yaml files
+def _load_yaml(yaml_file):
+    with open(yaml_file, "r") as fin:
+        yaml_dict = yaml.safe_load(fin)
+    return yaml_dict
 
 
-def run(build, *, kwargs_yaml=None, **kwargs_dict):
+KWARG_DEFAULTS = _load_yaml(Path(__file__).parent / "helpers_kwargs_defaults.yml")
+KWARG_DEFAULTS_ALL = _load_yaml(Path(__file__).parent / "helpers_kwargs_defaults_all.yml")
+
+
+def run(*, build, kwargs_yaml=None, **kwargs_dict):
     my_kwargs_dict = _construct_kwargs_dict(kwargs_yaml=kwargs_yaml, kwargs_dict=kwargs_dict)
 
     if build == "sample":
@@ -32,10 +40,9 @@ def _build_sample(
     *,
     literature_names,
     consolidate_nearby_objects,
-    get_sample_kwargs,
     sample_filepath,
     overwrite_existing_sample,
-    **extra_kwargs,
+    **get_sample_kwargs,
 ):
     """Build an AGN sample using coordinates from different papers.
 
@@ -78,10 +85,11 @@ def _build_sample(
     # else continue fetching the sample
     print(f"Building object sample from literature: {literature_names}", flush=True)
 
-    # create list of tuples: (get-sample function, kwargs dict)
+    # create a list of tuples for the get_sample functions and their kwargs
     get_sample_functions = [
-        (getattr(sample_selection, f"get_{name}_sample"), get_sample_kwargs.get(name, {}))
-        for name in literature_names
+        # tuple: (get-sample function, kwargs dict)
+        (getattr(sample_selection, name), get_sample_kwargs.get(f"{name}_kwargs", {}))
+        for name in [f"get_{name}_sample" for name in literature_names]
     ]
 
     # iterate over the functions and get the samples
@@ -96,7 +104,7 @@ def _build_sample(
 
     # save and return the Table
     sample_table.write(sample_filepath, format="ascii.ecsv", overwrite=True)
-    print(f"object sample saved to: {sample_filepath}", flush=True)
+    print(f"Object sample saved to: {sample_filepath}", flush=True)
     return sample_table
 
 
@@ -217,44 +225,50 @@ def _build_other(keyword, **kwargs_dict):
 # ---- utils ----
 
 
-def _load_yaml(fyaml):
-    with open(fyaml, "r") as fin:
-        kwargs = yaml.safe_load(fin)
-    return kwargs
-
-
 def _construct_kwargs_dict(*, kwargs_yaml=None, kwargs_dict=dict()):
-    """Construct a complete kwargs dict by combining `kwargs_dict`, `kwargs_yaml`, and `KWARG_DEFAULTS_YAML`
+    """Construct a complete kwargs dict by combining `kwargs_dict`, `kwargs_yaml`, and `KWARG_DEFAULTS`
     (listed in order of precedence).
     """
     # load defaults
-    my_kwargs_dict = _load_yaml(KWARG_DEFAULTS_YAML)
-    # load and add kwargs from yaml file
+    my_kwargs_dict = dict(**KWARG_DEFAULTS)
+    # update with kwargs from yaml file
     my_kwargs_dict.update(_load_yaml(kwargs_yaml) if kwargs_yaml else {})
-    # add kwargs from dict
+    # update with kwargs from dict
     my_kwargs_dict.update(kwargs_dict)
 
-    # expand a literature_names shortcut
-    if my_kwargs_dict['literature_names'] == "core":
-        my_kwargs_dict['literature_names'] = my_kwargs_dict["literature_names_core"]
-
-    # construct and add base_dir, sample_filepath, and parquet_dir
+    # construct and add paths
     base_dir = my_kwargs_dict["base_dir_stub"] + "-" + my_kwargs_dict["run_id"]
     my_kwargs_dict["base_dir"] = base_dir
     my_kwargs_dict['sample_filepath'] = Path(base_dir + "/" + my_kwargs_dict['sample_filename'])
     my_kwargs_dict["parquet_dir"] = Path(base_dir + "/" + my_kwargs_dict["parquet_dataset_name"])
+    
+    # handle sample and mission kwargs
+    my_kwargs_dict.update(_construct_sample_kwargs(my_kwargs_dict))
+    my_kwargs_dict.update(_construct_mission_kwargs(my_kwargs_dict))
 
-    # handle mission_kwargs
-    my_kwargs_dict["mission_kwargs"] = _construct_mission_kwargs(my_kwargs_dict)
-
+    # sort the kwargs by key and return
     return {key: my_kwargs_dict[key] for key in sorted(my_kwargs_dict)}
 
 
+def _construct_sample_kwargs(kwargs_dict):
+    """Construct sample kwargs from kwargs_dict plus defaults."""
+    # get defaults for get_*_sample functions
+    my_sample_kwargs = KWARG_DEFAULTS_ALL['get_sample_kwargs_all']
+    # update with passed-in dict
+    my_sample_kwargs.update(kwargs_dict)
+
+    # expand a literature_names shortcut
+    if my_sample_kwargs['literature_names'] == "all":
+        my_sample_kwargs['literature_names'] = KWARG_DEFAULTS_ALL["literature_names_all"]
+    
+    return my_sample_kwargs
+    
+
 def _construct_mission_kwargs(kwargs_dict):
-    """Construct mission_kwargs from kwargs_dict."""
+    """Construct mission_kwargs from kwargs_dict plus defaults."""
     mission = kwargs_dict.get("mission", "").lower()
     # get default mission_kwargs
-    default_mission_kwargs = kwargs_dict["mission_kwargs_all"].get(mission, {})
+    default_mission_kwargs = KWARG_DEFAULTS_ALL["mission_kwargs_all"].get(mission, {})
     # update with passed-in values
     default_mission_kwargs.update(kwargs_dict.get("mission_kwargs", {}))
 
@@ -271,7 +285,7 @@ def _construct_mission_kwargs(kwargs_dict):
         radius, unit = tuple(["radius", u.arcsec] if mission == "wise" else ["match_radius", u.deg])
         mission_kwargs[radius] = mission_kwargs[radius] * unit
 
-    return mission_kwargs
+    return {"mission_kwargs": mission_kwargs}
 
 
 def _init_worker(job_name="worker"):

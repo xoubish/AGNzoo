@@ -1,17 +1,4 @@
-literature_names:
-  - yang
-  - SDSS
-consolidate_nearby_objects: True
-mission: gaia
-# paths. base_dir will be "{base_dir_stub}-{run_id}"
-run_id: tmp
-base_dir_stub: ../output/lightcurves
-sample_filename: object_sample.ecsv
-parquet_dataset_name: lightcurves.parquet
-# whether to overwrite
-overwrite_existing_sample: False
-overwrite_existing_data: True
-# sample options
+# Sample options
 literature_names_all:
   - green
   - hon
@@ -26,10 +13,21 @@ literature_names_all:
   - SDSS
   - TDE
   - yang
-get_sample_kwargs:
-  SDSS:
+get_sample_kwargs_all:
+  # only required arguments are listed for these
+  get_SDSS_sample_kwargs:
     num: 10
-# mission options
+  get_TDE_sample_kwargs:
+    object_ids:
+    - ZTF18aabtxvd
+    - ZTF18aahqkbt
+  get_papers_sample_kwargs:
+    paper_kwargs:
+    - label: FermiBL
+      paper_link: 2015ApJ...810...14A
+    - label: Cicco19
+      paper_link: 2019A&A...627A..33D
+# Mission options
 mission_names_core:
   - gaia
   - heasarc
