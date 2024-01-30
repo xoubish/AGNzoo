@@ -2,16 +2,50 @@ literature_names:
   - yang
   - SDSS
 consolidate_nearby_objects: True
+mission: gaia
+# paths. base_dir will be "{base_dir_stub}-{run_id}"
+run_id: tmp
+base_dir_stub: ../output/lightcurves
+sample_filename: object_sample.ecsv
+parquet_dataset_name: lightcurves.parquet
+# whether to overwrite
+overwrite_existing_sample: False
+overwrite_existing_data: True
+# sample options
+literature_names_all:
+  - green
+  - hon
+  - lamassa
+  - lopeznavas
+  - lyu
+  - macleod16
+  - macleod19
+  - ruan
+  - papers
+  - sheng
+  - SDSS
+  - TDE
+  - yang
 get_sample_kwargs:
   SDSS:
     num: 10
-mission: gaia
-base_dir: ../output/lightcurves
-sample_filename: object_sample.ecsv
-parquet_dataset_name: lightcurves.parquet
-overwrite_existing_sample: False
-overwrite_existing_data: True
-missions_kwargs:
+# mission options
+mission_names_core:
+  - gaia
+  - heasarc
+  - icecube
+  - wise
+  - ztf
+mission_names_all:
+  - gaia
+  - heasarc
+  - hcv
+  - icecube
+  - panstarrs
+  - tess_kepler
+  - wise
+  - ztf
+mission_kwargs_all:
   gaia:
     search_radius: 1/3600  # deg
     verbose: 0
