@@ -1,0 +1,35 @@
+literature_names:
+  - yang
+  - SDSS
+consolidate_nearby_objects: True
+get_sample_kwargs:
+  SDSS:
+    num: 10
+mission: gaia
+base_dir: ../output/lightcurves
+sample_filename: object_sample.ecsv
+parquet_dataset_name: lightcurves.parquet
+overwrite_existing_sample: False
+overwrite_existing_data: True
+missions_kwargs:
+  gaia:
+    search_radius: 1/3600  # deg
+    verbose: 0
+  heasarc:
+    catalog_error_radii:
+      FERMIGTRIG: 1.0  # ?
+      SAXGRBMGRB: 3.0  # ?
+  hcv:
+    radius: 1/3600  # deg
+  icecube:
+    icecube_select_topN: 3
+  panstarrs:
+    radius: 1/3600  # deg
+  tess_kepler:
+    radius: 1.0  # arcsec
+  wise:
+    radius: 1.0  # arcsec
+    bandlist: [W1, W2]
+  ztf:
+    match_radius: 1/3600  # deg
+    nworkers: 6

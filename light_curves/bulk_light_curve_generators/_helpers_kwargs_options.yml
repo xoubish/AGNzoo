@@ -1,0 +1,28 @@
+literature_names_all:
+  - green
+  - hon
+  - lamassa
+  - lopeznavas
+  - lyu
+  - macleod16
+  - macleod19
+  - ruan
+  - papers
+  - sheng
+  - SDSS
+  - TDE
+  - yang
+get_sample_kwargs:
+  SDSS:
+    num: 10
+mission_names_core:
+  - gaia heasarc icecube wise ztf
+mission_names_all:
+  - gaia
+  - heasarc
+  - hcv
+  - icecube
+  - panstarrs
+  - tess_kepler
+  - wise
+  - ztf
