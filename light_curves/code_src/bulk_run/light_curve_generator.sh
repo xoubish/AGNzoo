@@ -189,6 +189,10 @@ fi
 
 # ---- Construct file paths.
 base_dir=$(python $HELPER_PY --build base_dir+ --extra_kwargs ${extra_kwargs[@]} --json_kwargs "$json_kwargs")
+if [ ! -d $base_dir ]; then
+    echo "$base_dir does not exist. Exiting."
+    exit 1
+fi
 # echo "base: ${base_dir}"
 parquet_dir=$(python $HELPER_PY --build parquet_dirpath+ --extra_kwargs ${extra_kwargs[@]} --json_kwargs "$json_kwargs")
 # echo "parquet: ${parquet_dir}"
