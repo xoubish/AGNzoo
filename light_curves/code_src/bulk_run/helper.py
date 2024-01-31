@@ -318,7 +318,7 @@ def _run_main(args_list):
         Arguments submitted from the command line.
     """
     args = _parse_args(args_list)
-    run(build=args.build, kwargs_yaml=args.kwargs_yaml, kwargs_dict=args.extra_kwargs)
+    run(build=args.build, kwargs_yaml=args.kwargs_yaml, **args.extra_kwargs)
 
 
 def _parse_args(args_list):
