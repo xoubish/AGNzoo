@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import sys
+from datetime import datetime, timezone
 from fractions import Fraction
 from pathlib import Path
 
@@ -109,6 +110,7 @@ def _build_sample(
     # save and return the Table
     sample_table.write(sample_filepath, format="ascii.ecsv", overwrite=True)
     print(f"Object sample saved to: {sample_filepath}", flush=True)
+    print(_now())
     return sample_table
 
 
@@ -208,6 +210,7 @@ def _build_lightcurves(
     parquet_filepath.parent.mkdir(parents=True, exist_ok=True)
     lightcurve_df.data.to_parquet(parquet_filepath)
     print(f"Light curves saved to: {parquet_filepath}", flush=True)
+    print(_now())
     return lightcurve_df
 
 
@@ -339,7 +342,11 @@ def _construct_path_kwargs(kwargs_dict):
 def _init_worker(job_name="worker"):
     """Run generic start-up tasks for a job."""
     # print the Process ID for the current worker so it can be killed if needed
-    print(f"[pid={os.getpid()}] Starting {job_name}", flush=True)
+    print(f"{_now()} | [pid={os.getpid()}] Starting {job_name}", flush=True)
+
+
+def _now():
+    return datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M:%S %Z")
 
 
 # ---- helpers for __name__ == "__main__" ----
