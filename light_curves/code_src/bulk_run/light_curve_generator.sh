@@ -189,8 +189,9 @@ fi
 
 # ---- Construct file paths.
 base_dir=$(python $HELPER_PY --build base_dir+ --extra_kwargs ${extra_kwargs[@]} --json_kwargs "$json_kwargs")
-if [ ! -d $base_dir ]; then
-    echo "$base_dir does not exist. Exiting."
+# if HELPER_PY didn't create base_dir then something is wrong and we need to exit
+if [ ! -d "$base_dir" ]; then
+    echo "${base_dir} does not exist. Exiting."
     exit 1
 fi
 # echo "base: ${base_dir}"
