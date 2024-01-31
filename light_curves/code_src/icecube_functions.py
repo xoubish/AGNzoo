@@ -14,6 +14,9 @@ from astropy.table import Table, vstack
 from data_structures import MultiIndexDFObject
 
 
+DATA_PATH = os.path.dirname(os.path.dirname(__file__)) + "/data/"  # absolute path to light_curves/data/
+
+
 def Icecube_get_lightcurve(sample_table, icecube_select_topN=3, max_search_radius=2*u.deg):
     '''
     Extracts IceCube Neutrino events for a given source position.
@@ -90,7 +93,7 @@ def Icecube_get_lightcurve(sample_table, icecube_select_topN=3, max_search_radiu
     return (MultiIndexDFObject(data=filter_icecube_df))
 
 
-def icecube_get_catalog(path="data", verbose=False):
+def icecube_get_catalog(path=DATA_PATH, verbose=False):
     '''
     Creates the combined IceCube catalog based on the yearly catalogs.
 
@@ -136,7 +139,7 @@ def icecube_get_catalog(path="data", verbose=False):
 
 
 def icecube_download_data(url="http://icecube.wisc.edu/data-releases/20210126_PS-IC40-IC86_VII.zip",
-                          path="data", verbose=False):
+                          path=DATA_PATH, verbose=False):
     '''
     Download and unzipps the IceCube data (approx. 40MB zipped, 120MB unzipped). Directly
     downloaded from the IceCube webpage:
