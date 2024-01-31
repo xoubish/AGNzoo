@@ -316,4 +316,3 @@ def transform_lightcurves(ztf_df):
     ztf_df["err"] = (fluxupper - fluxlower) / 2
 
     return ztf_df
-
