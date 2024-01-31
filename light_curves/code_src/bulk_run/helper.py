@@ -225,7 +225,7 @@ def _build_other(keyword, **kwargs_dict):
     #     other = my_kwargs_dict.get(keyword)
 
     # value = kwargs_dict.get(keyword, KWARG_DEFAULTS_BAG.get(keyword))
-    value = kwargs_dict.get(keyword, kwargs_dict['bag'].get(keyword))
+    value = kwargs_dict.get(keyword, kwargs_dict["bag"].get(keyword))
 
     if print_scalar:
         print(value)
@@ -248,28 +248,37 @@ def _construct_kwargs_dict(*, kwargs_yaml=None, kwargs_dict=dict()):
     my_kwargs_dict.update(_load_yaml(kwargs_yaml) if kwargs_yaml else {})
     # update with kwargs from dict
     my_kwargs_dict.update(kwargs_dict)
+    # add the bag containing fallbacks for any kwarg that might be needed
+    my_kwargs_dict["bag"] = _construct_kwargs_bag(my_kwargs_dict)
 
-    # update the bag and add it back in
-    kwargs_bag = {**KWARG_DEFAULTS_BAG}
-    kwargs_dict_bag = my_kwargs_dict.pop('bag', {})
-    kwargs_bag['get_sample_kwargs_all'].update(kwargs_dict_bag.pop("get_sample_kwargs_all", {}))
-    kwargs_bag['mission_kwargs_all'].update(kwargs_dict_bag.pop("mission_kwargs_all", {}))
-    kwargs_bag.update(kwargs_dict_bag)
-    my_kwargs_dict['bag'] = kwargs_bag
-
-    # handle sample and mission kwargs
+    # update sets of kwargs
     my_kwargs_dict.update(_construct_sample_kwargs(my_kwargs_dict))
     my_kwargs_dict.update(_construct_mission_kwargs(my_kwargs_dict))
+    my_kwargs_dict.update(_construct_path_kwargs(my_kwargs_dict))
 
-    # construct and add paths
-    base_dir = BULK_RUN_DIR.parent.parent / f"output/lightcurves-{my_kwargs_dict['run_id']}"
-    base_dir.mkdir(parents=True, exist_ok=True)
-    my_kwargs_dict["base_dir"] = base_dir
-    my_kwargs_dict["sample_filepath"] = base_dir / my_kwargs_dict["sample_filename"]
-    my_kwargs_dict["parquet_dirpath"] = base_dir / my_kwargs_dict["parquet_dataset_name"]
-
-    # sort the kwargs by key and return
+    # sort by key and return
     return {key: my_kwargs_dict[key] for key in sorted(my_kwargs_dict)}
+
+
+def _construct_kwargs_bag(kwargs_dict):
+    """Construct kwargs 'bag' from kwargs_dict plus defaults."""
+    # get defaults and the passed-in values
+    my_kwargs_bag = {**KWARG_DEFAULTS_BAG}
+    kwargs_dict_bag = kwargs_dict.pop("bag", {})
+
+    # there are two dicts that we need to descend into in order to update the defaults
+    for kwargs_all in ["get_sample_kwargs_all", "mission_kwargs_all"]:
+        kwargs_dict_all = kwargs_dict_bag.pop(kwargs_all, {})
+        for name, kwargs in kwargs_dict_all.items():
+            if name in my_kwargs_bag[kwargs_all]:
+                my_kwargs_bag[kwargs_all][name].update(kwargs)
+            else:
+                my_kwargs_bag[kwargs_all][name] = kwargs
+
+    # now update everything else
+    my_kwargs_bag.update(kwargs_dict_bag)
+
+    return my_kwargs_bag
 
 
 def _construct_sample_kwargs(kwargs_dict):
@@ -291,7 +300,7 @@ def _construct_sample_kwargs(kwargs_dict):
 def _construct_mission_kwargs(kwargs_dict):
     """Construct mission_kwargs from kwargs_dict plus defaults."""
     mission = kwargs_dict.get("mission", "").lower()
-    
+
     # make a copy of default mission_kwargs
     # default_mission_kwargs = {**KWARG_DEFAULTS_BAG["mission_kwargs_all"].get(mission, {})}
     default_mission_kwargs = {**kwargs_dict["bag"]["mission_kwargs_all"].get(mission, {})}
@@ -313,6 +322,18 @@ def _construct_mission_kwargs(kwargs_dict):
         mission_kwargs[radius] = mission_kwargs[radius] * unit
 
     return {"mission_kwargs": mission_kwargs}
+
+
+def _construct_path_kwargs(kwargs_dict):
+    """Construct paths from kwargs_dict plus defaults."""
+    base_dir = BULK_RUN_DIR.parent.parent / f"output/lightcurves-{kwargs_dict['run_id']}"
+    base_dir.mkdir(parents=True, exist_ok=True)
+    my_kwargs_dict = {
+        "base_dir": base_dir,
+        "sample_filepath": base_dir / kwargs_dict["sample_filename"],
+        "parquet_dirpath": base_dir / kwargs_dict["parquet_dataset_name"],
+    }
+    return my_kwargs_dict
 
 
 def _init_worker(job_name="worker"):
