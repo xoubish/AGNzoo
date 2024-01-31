@@ -241,7 +241,7 @@ for mission in ${mission_names[@]}; do
         --mission $mission \
         > ${logfile} 2>&1 &
         # --kwargs_yaml $yaml \
-    echo "${mission} logfile=${logfile}"
+    echo "[pid=${!}] ${mission} started. logfile=${logfile}"
 done
 
 # ---- 3: Print some instructions for the user, then exit.
