@@ -14,3 +14,8 @@ get_papers_sample_kwargs:
   - label: Cicco19
     paper_link: 2019A&A...627A..33D
 # consolidate_nearby_objects: False
+bag:
+  mission_kwargs_all:
+    ztf:
+      match_radius: 1/3600  # deg
+      nworkers: 9
