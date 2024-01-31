@@ -221,7 +221,7 @@ def _build_other(keyword, **kwargs_dict):
     # else:
     #     other = my_kwargs_dict.get(keyword)
 
-    value = kwargs_dict.get(keyword)
+    value = kwargs_dict.get(keyword, KWARG_DEFAULTS_BAG.get(keyword))
 
     if print_scalar:
         print(value)
