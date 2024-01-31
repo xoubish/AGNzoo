@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import sys
 from fractions import Fraction
@@ -341,14 +342,13 @@ def _parse_args(args_list):
         type=str,
         default=list(),
         nargs="*",
-        help="Kwargs to be added to kwargs_yaml. If the same key is provided both places, this takes precedence.",
+        help="Kwargs to be added to kwargs_yaml. May also contain key 'json_kwargs', kwargs as a json string.",
     )
     parser.add_argument(
-        # this is separate for convenience and will be added to extra_kwargs if provided
         "--mission",
         type=str,
         default=None,
-        help="Mission name to query for light curves.",
+        help="Mission name to query for light curves, to be added to extra_kwargs.",
     )
 
     # parse and return the script arguments
@@ -366,9 +366,15 @@ def _parse_extra_kwargs(args):
     extra_kwargs = {
         key: (bool(val) if val.lower() in ["true", "false"] else val) for (key, val) in extra_kwargs_tmp.items()
     }
+
+    # pop out the json_kwargs, parse into a dict, and add them back in
+    json_kwargs = args.extra_kwargs.pop('json_kwargs', r'{}')
+    extra_kwargs.update(json.loads(json_kwargs))
+
     # add the mission, if provided
     if args.mission:
         extra_kwargs["mission"] = args.mission
+
     return extra_kwargs
 
 
