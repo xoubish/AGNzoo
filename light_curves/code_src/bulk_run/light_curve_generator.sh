@@ -146,17 +146,19 @@ print_usage(){
 mission_names=(core)
 # yaml=helper_kwargs_defaults.yml
 extra_kwargs=()
+json_kwargs='{}'
 kill_all_processes=false
 
 # ---- Set variables that were passed in as script arguments.
 # info about getopts: https://www.computerhope.com/unix/bash/getopts.htm#examples
-while getopts r:m:y:e:hik flag; do
+while getopts r:m:j:e:hik flag; do
     case $flag in
         r) run_id=$OPTARG
             extra_kwargs+=("run_id=${OPTARG}")
             ;;
         m) mission_names=("$OPTARG");;
-        y) yaml=$OPTARG;;
+        # y) yaml=$OPTARG;;
+        j) json_kwargs=$OPTARG;;
         h) print_usage
             exit 0
             ;;
@@ -186,9 +188,9 @@ if [ -z ${run_id+x} ]; then
 fi
 
 # ---- Construct file paths.
-base_dir=$(python $HELPER_PY --build base_dir+ --extra_kwargs ${extra_kwargs[@]})
+base_dir=$(python $HELPER_PY --build base_dir+ --extra_kwargs ${extra_kwargs[@]} --json_kwargs "$json_kwargs")
 # echo "base: ${base_dir}"
-parquet_dir=$(python $HELPER_PY --build parquet_dirpath+ --extra_kwargs ${extra_kwargs[@]})
+parquet_dir=$(python $HELPER_PY --build parquet_dirpath+ --extra_kwargs ${extra_kwargs[@]} --json_kwargs "$json_kwargs")
 # echo "parquet: ${parquet_dir}"
 # base_dir=$(python $HELPER_PY --build base_dir+ --kwargs_yaml $yaml --extra_kwargs ${extra_kwargs[@]})
 # parquet_dir=$(python $HELPER_PY --build parquet_dir+ --kwargs_yaml $yaml --extra_kwargs ${extra_kwargs[@]})
@@ -224,6 +226,7 @@ echo
 echo "Build sample is starting. logfile=${logfile}"
 python $HELPER_PY --build sample \
     --extra_kwargs ${extra_kwargs[@]} \
+    --json_kwargs "$json_kwargs" \
     > ${logfile} 2>&1
     # --kwargs_yaml $yaml \
 echo "Build sample is done. Printing the log for convenience:"
@@ -238,6 +241,7 @@ for mission in ${mission_names[@]}; do
     logfiles+=("$logfile")
     nohup python $HELPER_PY --build lightcurves \
         --extra_kwargs ${extra_kwargs[@]} \
+        --json_kwargs "$json_kwargs" \
         --mission $mission \
         > ${logfile} 2>&1 &
         # --kwargs_yaml $yaml \
