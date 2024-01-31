@@ -224,7 +224,8 @@ def _build_other(keyword, **kwargs_dict):
     # else:
     #     other = my_kwargs_dict.get(keyword)
 
-    value = kwargs_dict.get(keyword, KWARG_DEFAULTS_BAG.get(keyword))
+    # value = kwargs_dict.get(keyword, KWARG_DEFAULTS_BAG.get(keyword))
+    value = kwargs_dict.get(keyword, kwargs_dict['bag'].get(keyword))
 
     if print_scalar:
         print(value)
@@ -242,11 +243,19 @@ def _construct_kwargs_dict(*, kwargs_yaml=None, kwargs_dict=dict()):
     (listed in order of precedence).
     """
     # make a copy of the defaults
-    my_kwargs_dict = dict(**KWARG_DEFAULTS)
+    my_kwargs_dict = {**KWARG_DEFAULTS}
     # update with kwargs from yaml file
     my_kwargs_dict.update(_load_yaml(kwargs_yaml) if kwargs_yaml else {})
     # update with kwargs from dict
     my_kwargs_dict.update(kwargs_dict)
+
+    # update the bag and add it back in
+    kwargs_bag = {**KWARG_DEFAULTS_BAG}
+    kwargs_dict_bag = my_kwargs_dict.pop('bag', {})
+    kwargs_bag['get_sample_kwargs_all'].update(kwargs_dict_bag.pop("get_sample_kwargs_all", {}))
+    kwargs_bag['mission_kwargs_all'].update(kwargs_dict_bag.pop("mission_kwargs_all", {}))
+    kwargs_bag.update(kwargs_dict_bag)
+    my_kwargs_dict['bag'] = kwargs_bag
 
     # handle sample and mission kwargs
     my_kwargs_dict.update(_construct_sample_kwargs(my_kwargs_dict))
@@ -266,13 +275,15 @@ def _construct_kwargs_dict(*, kwargs_yaml=None, kwargs_dict=dict()):
 def _construct_sample_kwargs(kwargs_dict):
     """Construct sample kwargs from kwargs_dict plus defaults."""
     # make a copy of the defaults for get_*_sample functions
-    my_sample_kwargs = {**KWARG_DEFAULTS_BAG["get_sample_kwargs_all"]}
+    # my_sample_kwargs = {**KWARG_DEFAULTS_BAG["get_sample_kwargs_all"]}
+    my_sample_kwargs = {**kwargs_dict["bag"]["get_sample_kwargs_all"]}
     # update with passed-in dict
     my_sample_kwargs.update(kwargs_dict)
 
     # expand a literature_names shortcut
     if my_sample_kwargs["literature_names"] == "all":
-        my_sample_kwargs["literature_names"] = [*KWARG_DEFAULTS_BAG["literature_names_all"]]
+        # my_sample_kwargs["literature_names"] = [*KWARG_DEFAULTS_BAG["literature_names_all"]]
+        my_sample_kwargs["literature_names"] = [*kwargs_dict["bag"]["literature_names_all"]]
 
     return my_sample_kwargs
 
@@ -280,9 +291,12 @@ def _construct_sample_kwargs(kwargs_dict):
 def _construct_mission_kwargs(kwargs_dict):
     """Construct mission_kwargs from kwargs_dict plus defaults."""
     mission = kwargs_dict.get("mission", "").lower()
+    
     # make a copy of default mission_kwargs
-    default_mission_kwargs = {**KWARG_DEFAULTS_BAG["mission_kwargs_all"].get(mission, {})}
+    # default_mission_kwargs = {**KWARG_DEFAULTS_BAG["mission_kwargs_all"].get(mission, {})}
+    default_mission_kwargs = {**kwargs_dict["bag"]["mission_kwargs_all"].get(mission, {})}
     # update with passed-in values
+    default_mission_kwargs.update(kwargs_dict.get("bag", {}).get("mission_kwargs_all", {}).get(mission, {}))
     default_mission_kwargs.update(kwargs_dict.get("mission_kwargs", {}))
 
     # convert radius to a float
@@ -353,7 +367,7 @@ def _parse_args(args_list):
     parser.add_argument(
         "--json_kwargs",
         type=json.loads,
-        default=r'{}',
+        default=r"{}",
         help="Kwargs as a json string, to be added to extra_kwargs.",
     )
 
