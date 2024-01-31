@@ -350,6 +350,12 @@ def _parse_args(args_list):
         default=None,
         help="Mission name to query for light curves, to be added to extra_kwargs.",
     )
+    parser.add_argument(
+        "--json_kwargs",
+        type=json.loads,
+        default=r'{}',
+        help="Kwargs as a json string, to be added to extra_kwargs.",
+    )
 
     # parse and return the script arguments
     args = parser.parse_args(args_list)
@@ -368,8 +374,8 @@ def _parse_extra_kwargs(args):
     }
 
     # pop out the json_kwargs, parse into a dict, and add them back in
-    json_kwargs = args.extra_kwargs.pop('json_kwargs', r'{}')
-    extra_kwargs.update(json.loads(json_kwargs))
+    # json_kwargs = args.extra_kwargs.pop('json_kwargs', r'{}')
+    extra_kwargs.update(args.json_kwargs)
 
     # add the mission, if provided
     if args.mission:
