@@ -17,5 +17,4 @@ get_papers_sample_kwargs:
 bag:
   mission_kwargs_all:
     ztf:
-      match_radius: 1/3600  # deg
-      nworkers: 9
+      nworkers: 2
