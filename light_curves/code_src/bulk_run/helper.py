@@ -8,7 +8,9 @@ import yaml
 from astropy.table import Table
 
 BULK_RUN_DIR = Path(__file__).parent
-# sys.path.append(BULK_RUN_DIR.parent)
+# print("mypy", BULK_RUN_DIR)
+sys.path.append(str(BULK_RUN_DIR.parent))
+
 # Lazy-load all other imports to avoid depending on modules that will not actually be used.
 
 
