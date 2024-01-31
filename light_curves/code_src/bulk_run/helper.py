@@ -11,6 +11,7 @@ BULK_RUN_DIR = Path(__file__).parent
 # sys.path.append(BULK_RUN_DIR.parent)
 # Lazy-load all other imports to avoid depending on modules that will not actually be used.
 
+
 # load default kwargs from yaml files
 def _load_yaml(yaml_file):
     with open(yaml_file, "r") as fin:
@@ -160,34 +161,42 @@ def _build_lightcurves(
     # instead of checking for every mission individually.
     if mission.lower() == "gaia":
         from gaia_functions import Gaia_get_lightcurve
+
         lightcurve_df = Gaia_get_lightcurve(sample_table, **mission_kwargs)
 
     elif mission.lower() == "heasarc":
         from heasarc_functions import HEASARC_get_lightcurves
+
         lightcurve_df = HEASARC_get_lightcurves(sample_table, **mission_kwargs)
 
     elif mission.lower() == "hcv":
         from HCV_functions import HCV_get_lightcurves
+
         lightcurve_df = HCV_get_lightcurves(sample_table, **mission_kwargs)
 
     elif mission.lower() == "icecube":
         from icecube_functions import Icecube_get_lightcurve
+
         lightcurve_df = Icecube_get_lightcurve(sample_table, **mission_kwargs)
 
     elif mission.lower() == "panstarrs":
         from panstarrs import Panstarrs_get_lightcurves
+
         lightcurve_df = Panstarrs_get_lightcurves(sample_table, **mission_kwargs)
 
     elif mission.lower() == "tess_kepler":
         from TESS_Kepler_functions import TESS_Kepler_get_lightcurves
+
         lightcurve_df = TESS_Kepler_get_lightcurves(sample_table, **mission_kwargs)
 
     elif mission.lower() == "wise":
         from WISE_functions import WISE_get_lightcurves
+
         lightcurve_df = WISE_get_lightcurves(sample_table, **mission_kwargs)
 
     elif mission.lower() == "ztf":
         from ztf_functions import ZTF_get_lightcurve
+
         lightcurve_df = ZTF_get_lightcurve(sample_table, **mission_kwargs)
 
     else:
@@ -244,9 +253,9 @@ def _construct_kwargs_dict(*, kwargs_yaml=None, kwargs_dict=dict()):
     base_dir = BULK_RUN_DIR.parent.parent / f"output/lightcurves-{my_kwargs_dict['run_id']}"
     base_dir.mkdir(parents=True, exist_ok=True)
     my_kwargs_dict["base_dir"] = base_dir
-    my_kwargs_dict['sample_filepath'] = base_dir / my_kwargs_dict['sample_filename']
-    my_kwargs_dict["parquet_dirpath"] = base_dir /  my_kwargs_dict["parquet_dataset_name"]
-    
+    my_kwargs_dict["sample_filepath"] = base_dir / my_kwargs_dict["sample_filename"]
+    my_kwargs_dict["parquet_dirpath"] = base_dir / my_kwargs_dict["parquet_dataset_name"]
+
     # sort the kwargs by key and return
     return {key: my_kwargs_dict[key] for key in sorted(my_kwargs_dict)}
 
@@ -254,16 +263,16 @@ def _construct_kwargs_dict(*, kwargs_yaml=None, kwargs_dict=dict()):
 def _construct_sample_kwargs(kwargs_dict):
     """Construct sample kwargs from kwargs_dict plus defaults."""
     # make a copy of the defaults for get_*_sample functions
-    my_sample_kwargs = {**KWARG_DEFAULTS_BAG['get_sample_kwargs_all']}
+    my_sample_kwargs = {**KWARG_DEFAULTS_BAG["get_sample_kwargs_all"]}
     # update with passed-in dict
     my_sample_kwargs.update(kwargs_dict)
 
     # expand a literature_names shortcut
-    if my_sample_kwargs['literature_names'] == "all":
-        my_sample_kwargs['literature_names'] = [*KWARG_DEFAULTS_BAG["literature_names_all"]]
-    
+    if my_sample_kwargs["literature_names"] == "all":
+        my_sample_kwargs["literature_names"] = [*KWARG_DEFAULTS_BAG["literature_names_all"]]
+
     return my_sample_kwargs
-    
+
 
 def _construct_mission_kwargs(kwargs_dict):
     """Construct mission_kwargs from kwargs_dict plus defaults."""
@@ -322,7 +331,7 @@ def _parse_args(args_list):
     parser.add_argument(
         "--kwargs_yaml",
         type=str,
-        default="../bulk_light_curve_generators/helper_kwargs_defaults.yml",
+        default=None,
         help="Path to a yaml file containing the function keyword arguments to be used.",
     )
     parser.add_argument(
@@ -343,6 +352,8 @@ def _parse_args(args_list):
     # parse and return the script arguments
     args = parser.parse_args(args_list)
     args.extra_kwargs = _parse_extra_kwargs(args)
+    # if kwargs_yaml was sent in extra_kwargs pop it out, but don't overwrite existing
+    args.kwargs_yaml = args.kwargs_yaml or args.extra_kwargs.pop("kwargs_yaml", None)
     return args
 
 
@@ -357,7 +368,6 @@ def _parse_extra_kwargs(args):
     if args.mission:
         extra_kwargs["mission"] = args.mission
     return extra_kwargs
-
 
 
 if __name__ == "__main__":
