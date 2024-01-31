@@ -145,7 +145,6 @@ def _build_lightcurves(
 
     _init_worker(job_name=f"build=lightcurves, mission={mission}")
     parquet_filepath = parquet_dirpath / f"mission={mission}/part0.snappy.parquet"
-    parquet_filepath.parent.mkdir(parents=True, exist_ok=True)
 
     # if a sample file currently exists and the user elected not to overwrite, just return it
     if parquet_filepath.is_file() and not overwrite_existing_data:
@@ -205,6 +204,7 @@ def _build_lightcurves(
         raise ValueError(f"Unknown mission '{mission}'")
 
     # save and return the light curve data
+    parquet_filepath.parent.mkdir(parents=True, exist_ok=True)
     lightcurve_df.data.to_parquet(parquet_filepath)
     print(f"Light curves saved to: {parquet_filepath}", flush=True)
     return lightcurve_df
