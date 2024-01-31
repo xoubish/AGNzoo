@@ -1,6 +1,6 @@
 # ---- Run ID
 # the base dir for the run will be: "output/lightcurves-{run_id}", relative to light_curves directory
-run_id: my_run
+run_id: my-run
 # ---- Sample options
 literature_names:
   - yang
