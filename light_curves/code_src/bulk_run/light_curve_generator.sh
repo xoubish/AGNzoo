@@ -174,10 +174,17 @@ while getopts r:m:j:e:hik flag; do
 done
 # expand a mission_names shortcut value.
 if [ "${mission_names[0]}" == "all" ]; then
-    mission_names=($( python $HELPER_PY --build mission_names_all+l ))
+    mission_names=($( python $HELPER_PY --build mission_names_all+l \
+        --extra_kwargs ${extra_kwargs[@]} \
+        --json_kwargs "$json_kwargs" ) \
+    )
 fi
 if [ "${mission_names[0]}" == "core" ]; then
-    mission_names=($( python $HELPER_PY --build mission_names_core+l ))
+    mission_names=($( python $HELPER_PY --build mission_names_core+l \
+        --extra_kwargs ${extra_kwargs[@]} \
+        --json_kwargs "$json_kwargs" ) \
+    )
+
 fi
 
 # If a run_id was not supplied, exit.
