@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# BULK_RUN_DIR="$(dirname "$0")"
+HELPER_PY="$(dirname "$0")/helper.py"
+# echo "helper_py: ${HELPER_PY}"
+# exit 0
 # [TODO] append to all log and data files, don't overwrite
 
 # ---- Define some functions.
@@ -140,7 +144,7 @@ print_usage(){
 
 # ---- Set variable defaults.
 mission_names=(core)
-yaml=helper_kwargs_defaults.yml
+# yaml=helper_kwargs_defaults.yml
 extra_kwargs=()
 kill_all_processes=false
 
@@ -168,10 +172,10 @@ while getopts r:m:y:e:hik flag; do
 done
 # expand a mission_names shortcut value.
 if [ "${mission_names[0]}" == "all" ]; then
-    mission_names=($( python helper.py --build mission_names_all+l ))
+    mission_names=($( python $HELPER_PY --build mission_names_all+l ))
 fi
 if [ "${mission_names[0]}" == "core" ]; then
-    mission_names=($( python helper.py --build mission_names_core+l ))
+    mission_names=($( python $HELPER_PY --build mission_names_core+l ))
 fi
 
 # If a run_id was not supplied, exit.
@@ -182,9 +186,14 @@ if [ -z ${run_id+x} ]; then
 fi
 
 # ---- Construct file paths.
-base_dir=$(python helper.py --build base_dir+ --kwargs_yaml $yaml --extra_kwargs ${extra_kwargs[@]})
-parquet_dir=$(python helper.py --build parquet_dir+ --kwargs_yaml $yaml --extra_kwargs ${extra_kwargs[@]})
+base_dir=$(python $HELPER_PY --build base_dir+ --extra_kwargs ${extra_kwargs[@]})
+# echo "base: ${base_dir}"
+parquet_dir=$(python $HELPER_PY --build parquet_dirpath+ --extra_kwargs ${extra_kwargs[@]})
+# echo "parquet: ${parquet_dir}"
+# base_dir=$(python $HELPER_PY --build base_dir+ --kwargs_yaml $yaml --extra_kwargs ${extra_kwargs[@]})
+# parquet_dir=$(python $HELPER_PY --build parquet_dir+ --kwargs_yaml $yaml --extra_kwargs ${extra_kwargs[@]})
 logsdir="${base_dir}/logs"
+# echo "logs: ${logsdir}"
 mkdir -p $logsdir
 mylogfile="${logsdir}/$(basename $0).log"
 logfiles=("$mylogfile")
@@ -213,12 +222,13 @@ logfile="${logsdir}/get_sample.log"
 logfiles+=("$logfile")
 echo
 echo "Build sample is starting. logfile=${logfile}"
-python helper.py --build sample \
-    --kwargs_yaml $yaml \
+python $HELPER_PY --build sample \
     --extra_kwargs ${extra_kwargs[@]} \
     > ${logfile} 2>&1
+    # --kwargs_yaml $yaml \
 echo "Build sample is done. Printing the log for convenience:"
 print_logs $logfile
+# exit 0
 
 # ---- 2: Start the jobs to fetch the light curves in the background. Do not wait for them to finish.
 echo
@@ -226,11 +236,11 @@ echo "Mission archive calls are starting."
 for mission in ${mission_names[@]}; do
     logfile="${logsdir}/${mission}.log"
     logfiles+=("$logfile")
-    nohup python helper.py --build lightcurves \
-        --kwargs_yaml $yaml \
+    nohup python $HELPER_PY --build lightcurves \
         --extra_kwargs ${extra_kwargs[@]} \
         --mission $mission \
         > ${logfile} 2>&1 &
+        # --kwargs_yaml $yaml \
     echo "${mission} logfile=${logfile}"
 done
 
