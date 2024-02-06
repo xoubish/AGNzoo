@@ -5,7 +5,7 @@ jupyter:
       extension: .md
       format_name: markdown
       format_version: '1.3'
-      jupytext_version: 1.15.2
+      jupytext_version: 1.16.1
   kernelspec:
     display_name: Python 3 (ipykernel)
     language: python
@@ -30,6 +30,7 @@ import matplotlib.pyplot as plt
 from data_structures import MultiIndexDFObject
 
 from astroquery.sdss import SDSS
+from astroquery.ipac.ned import Ned
 
 from sample_selection import (clean_sample, get_green_sample, get_hon_sample, get_lamassa_sample,
                               get_lopeznavas_sample, get_lyu_sample, get_macleod16_sample, get_macleod19_sample, get_paper_sample,
@@ -43,9 +44,10 @@ logger.setLevel(logging.ERROR)
 
 ```python
 # Initialize agnlabels
-agnlabels = {'SDSS_QSO', 'WISE_R90', 'WISE_Variable', 'Turn-on', 'Turn-off',
+agnlabels = {'SDSS_QSO', 'WISE_R90', 'WISE_Variable','Galex_Variable','Optical_Variable',
+             'Palomar_Variable', 'Turn-on', 'Turn-off',
              'SPIDER', 'SPIDER_Broadline', 'SPIDER_QSO', 'SPIDER_AGN',
-             'TDE'}
+             'TDE','Fermi_blazar'}
 
 # Create an empty pandas DataFrame
 columns = ['SkyCoord', 'redshift'] + list(agnlabels)
@@ -90,14 +92,14 @@ def update_or_append_multiple(ras, decs, redshifts, labels):
 ## Add SDSS QSO from DR16
 
 ```python
-num = 100
+num = 10
 query = "SELECT TOP " + str(num) + " specObjID, ra, dec, z FROM SpecObj \
 WHERE ( z > 0.1 AND z < 1.0 AND class='QSO' AND zWARNING=0 )"
 if num>0:
     res = SDSS.query_sql(query, data_release = 16)
     for r in res:
         update_or_append_multiple([r['ra']], [r['dec']], [r['z']], ['SDSS_QSO'])
-df
+print(len(df))
 ```
 
 # SPIDERS 
@@ -151,10 +153,83 @@ plt.ylabel('counts')
 
 uspiderbl_labels = ['SPIDER_BLAGN' for ra in a['SDSS_RA'][uspiderbroad]]
 update_or_append_multiple(a['SDSS_RA'][uspiderbroad],a['SDSS_DEC'][uspiderbroad],a['Z_BEST'][uspiderbroad],uspiderbl_labels)
+print('objects in df now',len(df))
 
 uspideragn_labels = ['SPIDER_AGN' for ra in a['SDSS_RA'][uspideragn]]
 update_or_append_multiple(a['SDSS_RA'][uspideragn],a['SDSS_DEC'][uspideragn],a['Z_BEST'][uspideragn],uspideragn_labels)
-df
+print('objects in df now',len(df))
+
+```
+
+# Variable AGNs (WISE, COSMOS VLT, Palomar, Galex, )
+
+```python
+VAGN = pd.read_csv('data/WISE_MIR_variable_AGN_with_PS1_photometry_and_SDSS_redshift.csv')
+uwise = (VAGN['SDSS_redshift']>0)&(VAGN['SDSS_redshift']<zmax)
+vagn_labels = ['WISE_Variable' for ra in VAGN['SDSS_RA'][uwise]]
+print(len(vagn_labels))
+update_or_append_multiple(VAGN['SDSS_RA'][uwise],VAGN['SDSS_Dec'][uwise],VAGN['SDSS_redshift'][uwise],vagn_labels)
+
+```
+
+```python
+paper = Ned.query_refcode('2019A&A...627A..33D') #optically variable AGN in cosmos
+up = (paper['Redshift']>0)&(paper['Redshift']<=zmax)
+paper_labels = ['Optical_Variable' for ra in paper['RA'][up]]
+update_or_append_multiple(paper['RA'][up], paper['DEC'][up],paper['Redshift'][up],paper_labels)
+print(len(paper_labels))
+```
+
+```python
+paper = Ned.query_refcode('2022ApJ...933...37W') #Galex Variable
+up = (paper['Redshift']>0)&(paper['Redshift']<=zmax)
+paper_labels = ['Galex_Variable' for ra in paper['RA'][up]]
+update_or_append_multiple(paper['RA'][up], paper['DEC'][up],paper['Redshift'][up],paper_labels)
+print(len(paper_labels))
+```
+
+```python
+paper = Ned.query_refcode('2020ApJ...896...10B') #Palomar Variable
+up = (paper['Redshift']>0)&(paper['Redshift']<=zmax)
+paper_labels = ['Palomar_Variable' for ra in paper['RA'][up]]
+update_or_append_multiple(paper['RA'][up], paper['DEC'][up],paper['Redshift'][up],paper_labels)
+print(len(paper_labels))
+```
+
+```python
+paper = Ned.query_refcode('2015ApJ...810...14A') #FERMI BLAZERS
+up = (paper['Redshift']>0)&(paper['Redshift']<=zmax)
+paper_labels = ['Fermi_blazar' for ra in paper['RA'][up]]
+update_or_append_multiple(paper['RA'][up], paper['DEC'][up],paper['Redshift'][up],paper_labels)
+print(len(paper_labels))
+```
+
+```python
+def get_paper_sample(paper_link,label,coords,labels,verbose=1):
+    """Looks for RA,DEC in a paper using Ned query and returns list of coords and lables
+
+    Parameters
+    ----------
+    coords : list
+        list of Astropy SkyCoords derived from literature sources, shared amongst functions
+    lables : list
+        List of the first author name and publication year for tracking the sources, shared amongst functions
+    verbose : int, optional
+        Print out the length of the sample derived from this literature source
+    """
+    paper = Ned.query_refcode(paper_link)
+
+    paper_coords = [SkyCoord(ra, dec, frame='icrs', unit='deg') for ra, dec in zip(paper['RA'], paper['DEC'])]
+    paper_labels = [label for ra in paper['RA']]
+    coords.extend(paper_coords)
+    labels.extend(paper_labels)
+    if verbose:
+        print("number of sources added from "+str(label)+" :"+str(len(paper_coords)))
+
+
+```
+
+```python
 
 ```
 
