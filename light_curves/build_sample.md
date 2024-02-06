@@ -5,7 +5,7 @@ jupyter:
       extension: .md
       format_name: markdown
       format_version: '1.3'
-      jupytext_version: 1.16.1
+      jupytext_version: 1.15.2
   kernelspec:
     display_name: Python 3 (ipykernel)
     language: python
@@ -13,7 +13,7 @@ jupyter:
 ---
 
 # Build AGN final catalog sample 
-Last edit Feb5th
+By Shooby, Last edit Feb 6th
 
 ```python
 import sys
@@ -28,7 +28,6 @@ import astropy.io.fits as fits
 from astropy.coordinates import SkyCoord
 import matplotlib.pyplot as plt
 from data_structures import MultiIndexDFObject
-
 from astroquery.sdss import SDSS
 from astroquery.ipac.ned import Ned
 
@@ -92,7 +91,7 @@ def update_or_append_multiple(ras, decs, redshifts, labels):
 ## Add SDSS QSO from DR16
 
 ```python
-num = 10
+num = 100
 query = "SELECT TOP " + str(num) + " specObjID, ra, dec, z FROM SpecObj \
 WHERE ( z > 0.1 AND z < 1.0 AND class='QSO' AND zWARNING=0 )"
 if num>0:
@@ -196,63 +195,82 @@ update_or_append_multiple(paper['RA'][up], paper['DEC'][up],paper['Redshift'][up
 print(len(paper_labels))
 ```
 
-```python
+# Fermi (gamma ray) Blazars
+
+<!-- #raw -->
 paper = Ned.query_refcode('2015ApJ...810...14A') #FERMI BLAZERS
 up = (paper['Redshift']>0)&(paper['Redshift']<=zmax)
 paper_labels = ['Fermi_blazar' for ra in paper['RA'][up]]
 update_or_append_multiple(paper['RA'][up], paper['DEC'][up],paper['Redshift'][up],paper_labels)
 print(len(paper_labels))
-```
+<!-- #endraw -->
+
+# TDEs
 
 ```python
-def get_paper_sample(paper_link,label,coords,labels,verbose=1):
-    """Looks for RA,DEC in a paper using Ned query and returns list of coords and lables
+data = """
+1 ZTF18acaqdaa AT2018iih 262.0163662 30.6920758 0.212 van Velzen et al. (2021) TDE-He
+2 ZTF18acnbpmd AT2018jbv 197.6898587 8.5678292 0.340 Hammerstein et al. (2023) TDE-featureless
+3 ZTF19aabbnzo AT2018lna 105.8276892 23.0290953 0.0914 van Velzen et al. (2021) TDE-H+He
+4 ZTF19aaciohh AT2019baf 268.0005082 65.6266546 0.0890 This paper; J. Somalwar et al. (2023, in preparation) Unknown
+5 ZTF17aaazdba AT2019azh 123.3206388 22.6483180 0.0222 Hinkle et al. (2021) TDE-H+He
+6 ZTF19aakswrb AT2019bhf 227.3165243 16.2395720 0.121 van Velzen et al. (2021) TDE-H
+7 ZTF19aaniqrr AT2019cmw 282.1644974 51.0135422 0.519 This paper; J. Wise et al. (2023, in preparation) TDE-featureless
+8 ZTF19aapreis AT2019dsg 314.2623552 14.2044787 0.0512 Stein et al. (2021) TDE-H+He
+9 ZTF19aarioci AT2019ehz 212.4245268 55.4911223 0.0740 van Velzen et al. (2021) TDE-H
+10 ZTF19abzrhgq AT2019qiz 71.6578313 −10.2263602 0.0151 Nicholl et al. (2020) TDE-H+He
+11 ZTF19acspeuw AT2019vcb 189.7348778 33.1658869 0.0890 Hammerstein et al. (2023) TDE-H+He
+12 ZTF20aabqihu AT2020pj 232.8956925 33.0948917 0.0680 Hammerstein et al. (2023) TDE-H+He
+13 ZTF20abfcszi AT2020mot 7.8063109 85.0088329 0.0690 Hammerstein et al. (2023) TDE-H+He
+14 ZTF20abgwfek AT2020neh 230.3336852 14.0696032 0.0620 Angus et al. (2022) TDE-H+He
+15 ZTF20abnorit AT2020ysg 171.3584535 27.4406021 0.277 Hammerstein et al. (2023) TDE-featureless
+16 ZTF20acaazkt AT2020vdq 152.2227354 42.7167535 0.0450 This paper; J. Somalwar et al. (2023, in preparation) Unknown
+17 ZTF20achpcvt AT2020vwl 232.6575481 26.9824432 0.0325 Hammerstein et al. (2021a) TDE-H+He
+18 ZTF20acitpfz AT2020wey 136.3578499 61.8025699 0.0274 Arcavi et al. (2020) TDE-H+He
+19 ZTF20acnznms AT2020yue 165.0013942 21.1127532 0.204 This paper TDE-H?
+20 ZTF20acvezvs AT2020abri 202.3219785 19.6710235 0.178 This paper Unknown
+21 ZTF20acwytxn AT2020acka 238.7581288 16.3045292 0.338 Hammerstein et al. (2021b) TDE-featureless
+22 ZTF21aaaokyp AT2021axu 176.6514953 30.0854257 0.192 Hammerstein et al. (2021c) TDE-H+He
+23 ZTF21aakfqwq AT2021crk 176.2789219 18.5403839 0.155 This paper TDE-H+He?
+24 ZTF21aanxhjv AT2021ehb 46.9492531 40.3113468 0.0180 Yao et al. (2022a) TDE-featureless
+25 ZTF21aauuybx AT2021jjm 219.8777384 −27.8584845 0.153 Yao et al. (2021d) TDE-H
+26 ZTF21abaxaqq AT2021mhg 4.9287185 29.3168745 0.0730 Chu et al. (2021b) TDE-H+He
+27 ZTF21abcgnqn AT2021nwa 238.4636684 55.5887978 0.0470 Yao et al. (2021b) TDE-H+He
+28 ZTF21abhrchb AT2021qth 302.9121723 −21.1602187 0.0805 This paper TDE-coronal
+29 ZTF21abjrysr AT2021sdu 17.8496154 50.5749060 0.0590 Chu et al. (2021c) TDE-H+He
+30 ZTF21abqhkjd AT2021uqv 8.1661654 22.5489257 0.106 Yao (2021) TDE-H+He
+31 ZTF21abqtckk AT2021utq 229.6212498 73.3587323 0.127 This paper TDE-H
+32 ZTF21abxngcz AT2021yzv 105.2774821 40.8251799 0.286 Chu et al. (2022) TDE-featureless
+33 ZTF21acafvhf AT2021yte 103.7697396 12.6341503 0.0530 Yao et al. (2021a) TDE-H+He
+"""
 
-    Parameters
-    ----------
-    coords : list
-        list of Astropy SkyCoords derived from literature sources, shared amongst functions
-    lables : list
-        List of the first author name and publication year for tracking the sources, shared amongst functions
-    verbose : int, optional
-        Print out the length of the sample derived from this literature source
-    """
-    paper = Ned.query_refcode(paper_link)
+# Split the data into lines
+lines = data.strip().split('\n')
 
-    paper_coords = [SkyCoord(ra, dec, frame='icrs', unit='deg') for ra, dec in zip(paper['RA'], paper['DEC'])]
-    paper_labels = [label for ra in paper['RA']]
-    coords.extend(paper_coords)
-    labels.extend(paper_labels)
-    if verbose:
-        print("number of sources added from "+str(label)+" :"+str(len(paper_coords)))
+# Loop through each line, extracting the required information
+ras,decs,redshifts=[],[],[]
+for line in lines:
+    parts = line.split()
+    id_ = parts[0]
+    ra = float(parts[3].replace('−', '-'))
+    dec = float(parts[4].replace('−', '-'))
+    redshift = float(parts[5])
+    if (redshift >0)&(redshift<zmax): 
+        ras.append(ra)
+        decs.append(dec)
+        redshifts.append(redshift)
 
+ras,decs,redshifts = np.array(ras),np.array(decs),np.array(redshifts)
+TDE_labels = ['TDE' for ra in ras]
 
+update_or_append_multiple(ras, decs,redshifts,TDE_labels)
+print(len(TDE_labels))
 ```
+
+# Changing Looks (dividing to on and off)
 
 ```python
 
-```
-
-# WISE R90
-
-```python
-# 
-r90 = fits.getdata('data/J_ApJS_234_23_r90cat.dat.gz.fits.gz',1)
-r90.columns
-```
-
-```python
-
-```
-
-```python
-def build_sample():
-    '''Putting together a sample of SDSS quasars, WISE variable AGNs,
-    TDEs, Changing look AGNs, .. coordinates from different
-    papers.'''
-
-    coords = []
-    labels = []
 
     get_lamassa_sample(coords, labels)  #2015ApJ...800..144L
     get_macleod16_sample(coords, labels) #2016MNRAS.457..389M
@@ -265,35 +283,17 @@ def build_sample():
     get_hon_sample(coords, labels)  #2022MNRAS.511...54H
     get_yang_sample(coords, labels)   #2018ApJ...862..109Y
 
-    # Variable AGN sample from Ranga/Andreas:
-    VAGN = pd.read_csv('../data/WISE_MIR_variable_AGN_with_PS1_photometry_and_SDSS_redshift.csv')
-    vagn_coords = [SkyCoord(ra, dec, frame='icrs', unit='deg') for ra, dec in zip(VAGN['SDSS_RA'], VAGN['SDSS_Dec'])]
-    vagn_labels = ['WISE-Variable' for ra in VAGN['SDSS_RA']]
-    coords.extend(vagn_coords)
-    labels.extend(vagn_labels)
 
-    #now get some "normal" QSOs for use in the classifier
-    #there are ~500K of these, so choose the number based on
-    #a balance between speed of running the light curves and whatever
-    #the ML algorithms would like to have
-    num_normal_QSO = 2000
-    get_SDSS_sample(coords, labels, num_normal_QSO)
+```
 
-    ## ADD TDEs to the sample, manually copied the TDE ZTF names from Hammerstein et al. 2023
-    #tde_names = ['ZTF18aabtxvd','ZTF18aahqkbt','ZTF18abxftqm','ZTF18acaqdaa','ZTF18acpdvos','ZTF18actaqdw','ZTF19aabbnzo','ZTF18acnbpmd','ZTF19aakiwze','ZTF19aakswrb','ZTF17aaazdba','ZTF19aapreis','ZTF19aarioci','ZTF19abhejal','ZTF19abhhjcc','ZTF19abidbya','ZTF19abzrhgq','ZTF19accmaxo','ZTF20aabqihu','ZTF19acspeuw','ZTF20aamqmfk','ZTF18aakelin','ZTF20abjwvae','ZTF20abfcszi','ZTF20abefeab','ZTF20abowque','ZTF20abrnwfc','ZTF20acitpfz','ZTF20acqoiyt', 'ZTF20abnorit']
-    #TDE_id2coord(tde_names,coords,labels)
+# WISE R90
 
+```python
+# 
+r90 = fits.getdata('data/J_ApJS_234_23_r90cat.dat.gz.fits.gz',1)
+r90.columns
+```
 
-    get_paper_sample('2015ApJ...810...14A','FermiBL',coords,labels)
-    get_paper_sample('2019A&A...627A..33D','Cicco19',coords,labels)
-    get_paper_sample('2022ApJ...933...37W','Galex variable 22',coords,labels)
-    get_paper_sample('2020ApJ...896...10B','Palomar variable 20',coords,labels)
-
-    #To remove duplicates from the list if combining multiple references clean_sample can be used
-    # the call below with nonunique_sample just changes the structure to mimic the output of clean sample
-    coords_list, labels_list = nonunique_sample(coords, labels)
-    print('final sample: ',len(coords))
-    return coords_list,labels_list
-
+```python
 
 ```
