@@ -485,7 +485,7 @@ t.write('data/agnsample_feb7.ecsv', format='ascii.ecsv', overwrite=True)
 ```
 
 ```python
-def translate_bitwise_sum_to_labels(bitwise_sum, labels):
+def translate_bitwise_sum_to_labels(bitwise_sum):
     """
     Translate a bitwise sum back to the labels which were set to 1.
 
@@ -496,8 +496,13 @@ def translate_bitwise_sum_to_labels(bitwise_sum, labels):
     Returns:
     - List of strings, the labels that are set to 1.
     """
+    # Initialize agnlabels
+    agnlabels = ['SDSS_QSO', 'WISE_Variable','Optical_Variable','Galex_Variable',
+                 'Turn-on', 'Turn-off',
+                 'SPIDER', 'SPIDER_AGN','SPIDER_BL','SPIDER_QSOBL','SPIDER_AGNBL', 
+                 'TDE','Fermi_blazar']
     active_labels = []
-    for i, label in enumerate(labels):
+    for i, label in enumerate(agnlabels):
         # Check if the ith bit is set to 1
         if bitwise_sum & (1 << i):
             active_labels.append(label)
@@ -507,7 +512,7 @@ def translate_bitwise_sum_to_labels(bitwise_sum, labels):
 bitwise_sum_example = 5  # For example, if the binary representation is '101'
 
 # Translate the bitwise sum back to active labels
-active_labels = translate_bitwise_sum_to_labels(bitwise_sum_example, agnlabels)
+active_labels = translate_bitwise_sum_to_labels(bitwise_sum_example)
 print("Active Labels:", active_labels)
 
 ```
