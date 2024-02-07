@@ -20,3 +20,4 @@ alerce
 umap-learn
 git+https://github.com/sevamoo/SOMPY
 numba
+s3fs
