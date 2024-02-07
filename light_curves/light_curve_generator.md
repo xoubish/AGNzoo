@@ -4,11 +4,11 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.16.0
+    jupytext_version: 1.15.2
 kernelspec:
-  display_name: science_demo
+  display_name: Python 3 (ipykernel)
   language: python
-  name: conda-env-science_demo-py
+  name: python3
 ---
 
 # Make Multiwavelength Light Curves Using Archival Data
@@ -65,7 +65,7 @@ MAST, HEASARC, & IRSA Fornax teams
 
 ```{code-cell} ipython3
 # Ensure all dependencies are installed
-!pip install -r requirements.txt
+#!pip install -r requirements.txt
 ```
 
 ```{code-cell} ipython3
@@ -158,7 +158,8 @@ sample_table.write('data/input_sample.ecsv', format='ascii.ecsv', overwrite = Tr
 Do only this step from this section when you have a previously generated sample table
 
 ```{code-cell} ipython3
-sample_table = Table.read('data/input_sample.ecsv', format='ascii.ecsv')
+#sample_table = Table.read('data/input_sample.ecsv', format='ascii.ecsv')
+sample_table = Table.read('AGNsample_06Feb24.csv', format='csv')
 ```
 
 ### 1.4 Initialize data structure to hold the light curves
@@ -448,7 +449,7 @@ This work made use of:
 &bull; Astropy; Astropy Collaboration 2022, Astropy Collaboration 2018, Astropy Collaboration 2013,    2022ApJ...935..167A, 2018AJ....156..123A, 2013A&A...558A..33A  
 &bull; Lightkurve; Lightkurve Collaboration 2018, 2018ascl.soft12013L  
 &bull; acstools; https://zenodo.org/record/7406933#.ZBH1HS-B0eY  
-&bull; unWISE light curves; Meisner et al., 2023, 2023AJ....165...36M  
+&bull; unWISE light curves; Meisner et al., 2023, 2023AJ....165...36M
 
 ```{code-cell} ipython3
 

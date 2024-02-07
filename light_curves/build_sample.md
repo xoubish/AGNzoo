@@ -36,9 +36,6 @@ from astroquery.vizier import Vizier
 from astroquery.simbad import Simbad
 
 
-from sample_selection import (clean_sample, get_green_sample, get_hon_sample, get_lamassa_sample,
-                              get_lopeznavas_sample, get_lyu_sample, get_macleod16_sample, get_macleod19_sample, get_paper_sample,
-                              get_ruan_sample, get_SDSS_sample, get_sheng_sample, get_yang_sample, nonunique_sample)
 import logging
 
 # Get the root logger
@@ -48,13 +45,13 @@ logger.setLevel(logging.ERROR)
 zmax = 1.0
 
 # Initialize agnlabels
-agnlabels = {'SDSS_QSO', 'WISE_Variable','Optical_Variable','Galex_Variable',
+agnlabels = ['SDSS_QSO', 'WISE_Variable','Optical_Variable','Galex_Variable',
              'Turn-on', 'Turn-off',
              'SPIDER', 'SPIDER_AGN','SPIDER_BL','SPIDER_QSOBL','SPIDER_AGNBL', 
-             'TDE','Fermi_blazar'}
+             'TDE','Fermi_blazar']
 
 # Create an empty pandas DataFrame
-columns = ['SkyCoord', 'redshift'] + list(agnlabels)
+columns = ['SkyCoord', 'redshift'] + agnlabels
 df = pd.DataFrame(columns=columns)
 # Initialize label columns to 0
 for label in agnlabels:
@@ -100,14 +97,14 @@ def update_or_append_multiple(ras, decs, redshifts, labels):
 ## Add SDSS QSO from DR16
 
 ```python
-num = 500
+num = 1000
 query = "SELECT TOP " + str(num) + " specObjID, ra, dec, z FROM SpecObj \
 WHERE ( z > 0.1 AND z < " + str(zmax) + " AND class='QSO' AND zWARNING=0 )"
 if num>0:
     res = SDSS.query_sql(query, data_release = 16)
     for r in res:
         update_or_append_multiple([r['ra']], [r['dec']], [r['z']], ['SDSS_QSO'])
-print(len(df))
+print('SDSS QSO sources added: ',len(df))
 ```
 
 # SPIDERS 
@@ -421,6 +418,97 @@ print('TDEs added to df: ',len(TDE_labels))
 ```python
 # Assuming `df` is your pandas DataFrame
 df.to_csv('AGNsample_06Feb24.csv', index=False)
+
+```
+
+# Change format to ecsv and bitwise lable
+
+```python
+import pandas as pd
+from astropy.coordinates import SkyCoord
+from astropy.table import Table
+import astropy.units as u
+import numpy as np
+
+# Read the CSV file into a DataFrame
+df = pd.read_csv('data/AGNsample_06Feb24.csv')
+
+# Define a function to parse the strings into SkyCoord objects
+def parse_skycoord_string(s):
+    # Split the string to extract RA and Dec values
+    parts = s.split(',')
+    # Extract RA and Dec parts, removing unwanted characters
+    ra_str = parts[1].strip().split('(')[-1]
+    dec_str = parts[2].strip().split(')')[0]
+    # Convert to float and create a SkyCoord object
+    return SkyCoord(ra=float(ra_str)*u.deg, dec=float(dec_str)*u.deg)
+
+# Apply this function to each row in the 'SkyCoord' column
+df['SkyCoord_obj'] = df['SkyCoord'].apply(parse_skycoord_string)
+
+# Now, 'SkyCoord_obj' column contains SkyCoord objects
+# You can access RA and Dec directly from these objects if needed
+# For example, to add RA and Dec as separate columns in degrees:
+df['coord.ra'] = df['SkyCoord_obj'].apply(lambda x: x.ra.degree)
+df['coord.dec'] = df['SkyCoord_obj'].apply(lambda x: x.dec.degree)
+
+df.drop('SkyCoord_obj', axis=1, inplace=True)
+
+```
+
+```python
+# Initialize agnlabels
+agnlabels = ['SDSS_QSO', 'WISE_Variable','Optical_Variable','Galex_Variable',
+             'Turn-on', 'Turn-off',
+             'SPIDER', 'SPIDER_AGN','SPIDER_BL','SPIDER_QSOBL','SPIDER_AGNBL', 
+             'TDE','Fermi_blazar']
+# Calculate the sum of label columns for each row
+# Calculate the bitwise sum
+bitwise_sum = np.zeros(len(df), dtype=int)
+for i, label in enumerate(agnlabels):
+    bitwise_sum += df[label].values * (2 ** i)
+
+df['label'] = bitwise_sum
+df['objectid'] = df.index
+
+```
+
+```python
+selected_columns_df = df[['objectid', 'coord.ra', 'coord.dec', 'label']]
+t = Table.from_pandas(selected_columns_df)
+t.write('data/agnsample_feb7.ecsv', format='ascii.ecsv', overwrite=True)
+
+```
+
+```python
+
+```
+
+```python
+def translate_bitwise_sum_to_labels(bitwise_sum, labels):
+    """
+    Translate a bitwise sum back to the labels which were set to 1.
+
+    Parameters:
+    - bitwise_sum: Integer, the bitwise sum representing the combination of labels.
+    - labels: List of strings, the labels corresponding to each bit position.
+
+    Returns:
+    - List of strings, the labels that are set to 1.
+    """
+    active_labels = []
+    for i, label in enumerate(labels):
+        # Check if the ith bit is set to 1
+        if bitwise_sum & (1 << i):
+            active_labels.append(label)
+    return active_labels
+
+# Example usage
+bitwise_sum_example = 5  # For example, if the binary representation is '101'
+
+# Translate the bitwise sum back to active labels
+active_labels = translate_bitwise_sum_to_labels(bitwise_sum_example, agnlabels)
+print("Active Labels:", active_labels)
 
 ```
 
