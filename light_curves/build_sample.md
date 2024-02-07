@@ -24,12 +24,16 @@ import time
 import astropy.units as u
 import pandas as pd
 import numpy as np
+import csv
 import astropy.io.fits as fits
+from astropy.table import Table
 from astropy.coordinates import SkyCoord
 import matplotlib.pyplot as plt
 from data_structures import MultiIndexDFObject
 from astroquery.sdss import SDSS
 from astroquery.ipac.ned import Ned
+from astroquery.vizier import Vizier
+
 
 from sample_selection import (clean_sample, get_green_sample, get_hon_sample, get_lamassa_sample,
                               get_lopeznavas_sample, get_lyu_sample, get_macleod16_sample, get_macleod19_sample, get_paper_sample,
@@ -86,6 +90,9 @@ def update_or_append_multiple(ras, decs, redshifts, labels):
     # Append all new rows at once using pd.concat if there are any
     if new_rows:
         df = pd.concat([df, *new_rows], ignore_index=True)
+
+zmax = 1.0
+
 ```
 
 ## Add SDSS QSO from DR16
@@ -93,7 +100,7 @@ def update_or_append_multiple(ras, decs, redshifts, labels):
 ```python
 num = 100
 query = "SELECT TOP " + str(num) + " specObjID, ra, dec, z FROM SpecObj \
-WHERE ( z > 0.1 AND z < 1.0 AND class='QSO' AND zWARNING=0 )"
+WHERE ( z > 0.1 AND z < " + str(zmax) + " AND class='QSO' AND zWARNING=0 )"
 if num>0:
     res = SDSS.query_sql(query, data_release = 16)
     for r in res:
@@ -115,7 +122,6 @@ print('CLASS QSO DR16 SPIDER:',len(a['DR16_SUBCLASS'][a['DR16_CLASS']=='QSO']),'
 ```
 
 ```python
-zmax = 1.0
 # all spider that can be AGN/QSO
 uspider = (a['DR16_CLASS']!='STAR')&(a['DR16_SUBCLASS']!='STARFORMING')&(a['DR16_SUBCLASS']!='STARFORMING BROADLINE')&(a['DR16_SUBCLASS']!='STARBURST')&(a['DR16_SUBCLASS']!='STARBURST BROADLINE')&(a['Z_BEST']>0)&(a['Z_BEST']<zmax)
 
@@ -130,23 +136,10 @@ uqso_agn = (a['DR16_CLASS']=='QSO') &(a['DR16_SUBCLASS']=='AGN')&(a['Z_BEST']<=z
 uqso_agnbl = (a['DR16_CLASS']=='QSO') &(a['DR16_SUBCLASS']=='AGN BROADLINE')&(a['Z_BEST']<=zmax)&(a['Z_BEST']>=0.0)
 
 print(len(a[uspider]),len(a[uspiderbroad]),len(a[uspideragn]),len(a[ugal_agn]),len(a[ugal_agnbl]),len(a[uqso_agn]),len(a[uqso_agnbl]))
-
-o = plt.hist(a['Z_BEST'][ugal_agn],histtype='step',label='Galaxy AGNs')
-o = plt.hist(a['Z_BEST'][ugal_agnbl],histtype='step',label = 'Galaxy AGN_BL')
-o = plt.hist(a['Z_BEST'][uqso_agn],histtype='step',label='QSO AGN')
-o = plt.hist(a['Z_BEST'][uqso_agnbl],histtype='step',label='QSO AGN_BL')
-
-o = plt.hist(a['Z_BEST'][uspiderbroad],histtype='step',label='All AGN broad')
-o = plt.hist(a['Z_BEST'][uspideragn],histtype='step',label='All AGN non-broad')
-
-
-plt.legend()
-plt.xlabel('redshift')
-plt.ylabel('counts')
 ```
 
 ```python
-#long
+#takes long
 #uspider_labels = ['SPIDER' for ra in a['SDSS_RA'][uspider]]
 #update_or_append_multiple(a['SDSS_RA'][uspider],a['SDSS_DEC'][uspider],a['Z_BEST'][uspider],uspider_labels)
 
@@ -270,19 +263,102 @@ print(len(TDE_labels))
 # Changing Looks (dividing to on and off)
 
 ```python
+# one LaMassa et al. 2015 one CL at 0.31 which turned off
+paper = Ned.query_refcode('2015ApJ...800..144L') 
+update_or_append_multiple([paper[0]['RA']],[paper[0]['DEC']],[paper[0]['Redshift']],['Turn-off'])
 
 
-    get_lamassa_sample(coords, labels)  #2015ApJ...800..144L
-    get_macleod16_sample(coords, labels) #2016MNRAS.457..389M
-    get_ruan_sample(coords, labels) #2016ApJ...826..188R
-    get_macleod19_sample(coords, labels)  #2019ApJ...874....8M
-    get_sheng_sample(coords, labels)  #2020ApJ...889...46S
-    get_green_sample(coords, labels)  #2022ApJ...933..180G
-    get_lyu_sample(coords, labels)  #z32022ApJ...927..227L
+# McLeod et al. 2016 4/6 CL that turned on/off
+paper = Table.read('https://academic.oup.com/mnras/article/457/1/389/989199', htmldict={'table_id': 5}, format='ascii.html')
+for i in range(len(paper)):
+    redshift = paper['z\n            .'][i]
+    if (redshift>0)&(redshift<zmax):
+        if (paper['Max(Δg)\n            .'][i][0] =='−'):
+            coord_str = paper['Name\n            .'][i]
+            test_str = coord_str[0:2]+ " "+ coord_str[2:4]+ " " + coord_str[4:9] + " " + coord_str[9:12] + " " + coord_str[12:14]+ " " + coord_str[14:]
+            c = SkyCoord(test_str, unit=(u.hourangle, u.deg))
+            update_or_append_multiple([c.ra.deg],[c.dec.deg],[redshift],['Turn-on'])
+        else:
+            coord_str = paper['Name\n            .'][i]
+            test_str = coord_str[0:2]+ " "+ coord_str[2:4]+ " " + coord_str[4:9] + " " + coord_str[9:12] + " " + coord_str[12:14]+ " " + coord_str[14:]
+            c = SkyCoord(test_str, unit=(u.hourangle, u.deg))
+            update_or_append_multiple([c.ra.deg],[c.dec.deg],[redshift],['Turn-off'])
+
+# Ruan et al. three CL which turned off
+paper = Ned.query_refcode('2016ApJ...826..188R') 
+update_or_append_multiple([paper[0]['RA']],[paper[0]['DEC']],[paper[0]['Redshift']],['Turn-off'])
+
+#MacLeod 2019 has turn-on/off both spectroscopically confirmed (1/16) and candidates (17/245) to be confirmed
+Vizier.ROW_LIMIT = -1
+catalog_list = Vizier.find_catalogs('2019ApJ...874....8M')
+catalogs = Vizier.get_catalogs(catalog_list.keys())
+
+table2 = catalogs[0]  #more than one table
+g1,g2 = table2['_tab1_6'],table2['_tab1_9']
+dg = g1-g2
+uon_sp = (table2['z']<zmax)&(table2['z']>0)&(dg>0)&(table2['CLQ_'] > 0) & (table2['Nsigma'] > 3)
+uoff_sp = (table2['z']<zmax)&(table2['z']>0)&(dg<0)&(table2['CLQ_'] > 0) & (table2['Nsigma'] > 3)
+uon_all = (table2['z']<zmax)&(table2['z']>0)&(dg>0) #candidates not spec
+uoff_all = (table2['z']<zmax)&(table2['z']>0)&(dg<0) #candidates not spec
+cllabels = ['Turn-on' for ra in table2['_RA'][uon_sp]]
+update_or_append_multiple(table2['_RA'][uon_sp], table2['_DE'][uon_sp],table2['z'][uon_sp],cllabels)
+#print('on:',len(cllabels))
+cllabels = ['Turn-off' for ra in table2['_RA'][uoff_sp]]
+update_or_append_multiple(table2['_RA'][uoff_sp], table2['_DE'][uoff_sp],table2['z'][uoff_sp],cllabels)
+#print('off:',len(cllabels))
+
+#Yang et al. 2018, 27 (21 new) CL-AGNs z<0.58
+with open('data/Yang2018_table5.csv', mode='r', newline='') as file:
+    reader = csv.DictReader(file)
+    for row in reader:
+        # Convert RA and DEC to degrees using SkyCoord
+        coord = SkyCoord(row['RA'], row['DEC'], unit=(u.hourangle, u.deg))
+        ra_deg = coord.ra.deg
+        dec_deg = coord.dec.deg  
+        update_or_append_multiple([ra_deg], [dec_deg],[float(row['Redshift'])],[row['Transition']])
+
+#Sheng et al. 2020 confirmed 6 Turn-off AGNs (one was not robust) (IR variable to no variability) 2020ApJ...889...46S
+paper = Ned.query_refcode('2020ApJ...889...46S')
+sheng_CLQ = [0,2,3,4,5,6]
+cllabels = ['Turn-off' for ra in paper[sheng_CLQ]['RA']]
+update_or_append_multiple(paper[sheng_CLQ]['RA'],paper[sheng_CLQ]['DEC'],paper[sheng_CLQ]['Redshift'],cllabels)
+
+# Green et al. 2022, Identified 19 changing look quasars from their variation 
+#in the $H\beta$ line in multi-epoch SDSS-IV spectra, four of which with significant
+#increase in the broad line width and the rest with dimming or disappearing.        
+Vizier.ROW_LIMIT = -1
+catalog_list = Vizier.find_catalogs('J/ApJ/933/180')
+catalogs = Vizier.get_catalogs(catalog_list.keys())
+table2 = catalogs[0]
+#go to pandas to manipulate the table
+green_CSQ = table2.to_pandas()
+green_CSQ = green_CSQ[green_CSQ['Notes'].str.contains("CLQ", na = False)]
+#pick out the coordinates from the 'SDSS' column
+coord_str = green_CSQ['SDSS'].astype('string')
+test_str = coord_str.str[1:3]+ " "+ coord_str.str[3:5]+ " " + coord_str.str[5:10] + " " + coord_str.str[10:13] + " " + coord_str.str[13:15]+ " " + coord_str.str[15:]
+c = SkyCoord(test_str.values.tolist() , unit=(u.hourangle, u.deg))
+redshifts = np.array(green_CSQ['zspec'].astype('float'))
+notes = green_CSQ['Notes']
+labels = ['Turn-on' if 'TurnOn' in note else 'Turn-off' for note in notes]
+update_or_append_multiple(c.ra.deg,c.dec.deg,redshifts,labels)
+
+```
+
+```python
+
+```
+
+```python
+
     get_lopeznavas_sample(coords, labels)  #2022MNRAS.513L..57L
     get_hon_sample(coords, labels)  #2022MNRAS.511...54H
-    get_yang_sample(coords, labels)   #2018ApJ...862..109Y
 
+#get_lyu_sample(coords, labels)  #z32022ApJ...927..227L on/off not indicated
+
+    
+        \item \cite{Graham2020} Brighter than CL AGNs, they find Changing State Quasars, 48 declining and 63 increasing $H\beta$ flux.
+        \item \cite{Lopez2022} Used random forest to automatically select type 2 candidates which show type 1 variability in ZTF alert system. They followed up 6 of the visually cleaned sample spectrsocpically and confirmed four to be turn-on CLAGNs.
+        \item \cite{Hon2022} No criteria on optical magnitude or variation just searched repeated spectra for appearence/disappearence of BELs. Hence sample is not biased towards brighter QSOs. Difference between TDEs and turn-on BEL is timescale, so turn-on CLAGNs should be followed up to make sure they are not TDEs.
 
 ```
 
