@@ -190,13 +190,26 @@ for b in objid:
 
 i=0
 #plt.title(r'Time range and cadence covered in each in each waveband averaged over this sample:')
+colors2 = [
+    "#5499C7",  # Light Blue, reflecting the mood of the Blue Period and early Cubism
+    "#AF7AC5",  # Soft Lavender for the Rose Period and some Cubist works
+    "#1B4F72",  # Deep Blue from the Blue Period
+    "#48C9B0",  # Aqua Green, for a touch of the vibrancy in his later works
+    "#F39C12",  # Bright Yellow, representing the light and contrast in his Synthetic Cubism
+    "#E74C3C",  # Bright Red, common in his later, more expressive works
+    "#5DADE2",  # Sky Blue, evoking the Mediterranean influence in his work
+    "#F7DC6F",  # Light Yellow, capturing the warmth and innovation of his Synthetic Cubism period
+    "#58D68D",  # Light Green, reflecting the use of color in his later life
+
+]
+colorlabel = [0,1,1,1,2,2,3,3,3,3,3,4,5,5,5,6,7,7,8]
 for el in cadence.keys():
     #print(el,len(cadence[el]),np.mean(cadence[el]),np.std(cadence[el]))
     #print(el,len(timerange[el]),np.mean(timerange[el]),np.std(timerange[el]))
-    ax1.scatter(np.mean(cadence[el]),np.mean(timerange[el]),s=len(timerange[el]),alpha=0.6,c=colors[i+3])
-    ax1.errorbar(np.mean(cadence[el]),np.mean(timerange[el]),label=el,yerr=np.std(timerange[el]),xerr=np.std(cadence[el]),alpha=0.2,c=colors[i+3])
+    ax1.scatter(np.mean(cadence[el]),np.mean(timerange[el]),s=len(timerange[el]),alpha=0.7,c=colors2[colorlabel[i]])
+    ax1.errorbar(np.mean(cadence[el]),np.mean(timerange[el]),label=el,yerr=np.std(timerange[el]),xerr=np.std(cadence[el]),alpha=0.2,c=colors2[colorlabel[i]])
     i+=1
-
+    
 ax1.annotate('ZTF', # text to display
              (120, 1300),        # text location
              size=12, rotation=40 )
@@ -213,13 +226,10 @@ ax1.annotate('IceCube', # text to display
              (1, 1500),        # text location
              size=12, rotation=40 )
 ax1.annotate('TESS', # text to display
-             (200, 500),        # text location
+             (200, 20),        # text location
              size=12, rotation=40 )
 ax1.annotate('Kepler', # text to display
-             (200, 200),        # text location
-             size=12, rotation=40 )
-ax1.annotate('K2', # text to display
-             (180, 20),        # text location
+             (100, 300),        # text location
              size=12, rotation=40 )
 
 ax1.annotate('GRB', # text to display
@@ -239,12 +249,13 @@ for b in objid:
     bands = singleobj.loc[label[0],:,:].index.get_level_values('band')[:].unique()
     seen.update(bands)
     
-h = bottom_ax.bar(range(len(tiklabels)), seen.values(),color=colors[0])
+h = bottom_ax.bar(range(len(tiklabels)), seen.values(),color="#1B4F72")
 bottom_ax.set_xticks(range(len(tiklabels)),tiklabels,fontsize=15,rotation=90)
 bottom_ax.set_ylabel(r'$\rm number\ of\ lightcurves$',size=15)
 plt.tight_layout()
 
 plt.savefig('plots/sample.png')
+
 ```
 
 While from the histogram plot we see which bands have the highest number of observed lightcurves, what might matter more in finding/selecting variability or changing look in lightcurves is the cadence and the average baseline of observations. For instance, Panstarrs has a large number of lightcurve detections in our sample, but from the figure above we see that the average number of visits and the baseline for those observations are considerably less than ZTF. WISE also shows the longest baseline of observations which is suitable to finding longer term variability in objects.
