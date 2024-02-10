@@ -264,10 +264,321 @@ We first look at this sample only in ZTF bands which have the largest number of 
 The unify_lc, or unify_lc_gp functions do the unification of the lightcurve arrays. For details please see the codes. The time arrays are chosen based on the average duration of observations, with ZTF and WISE covering 1600, 4000 days respectively. We note that we disregard the time of observation of each source, by subtracting the initial time from the array and bringing all lightcurves to the same footing. This has to be taken into account if it influences the science of interest. We then interoplate the time arrays with linear or Gaussian Process regression (unift_lc/ unify_lc_gp respectively). We also remove from the sample objects with less than 5 datapoints in their light curve. We measure basic statistics and combine the tree observed ZTF bands into one longer array as input to dimensionailty reduction after deciding on normalization. We also do a shuffling of the sample to be sure that the separations of different classes by ML are not simply due to the order they are seen in training (in case it is not done by the ML routine itself).
 
 ```{code-cell} ipython3
+objids = df_lc.index.get_level_values('objectid')[:].unique()
+print(objids)
+```
+
+```{code-cell} ipython3
+translate_bitwise_sum_to_labels(16)
+```
+
+```{code-cell} ipython3
+from scipy import interpolate
+
+singleobj = df_lc.loc[8238, :, :, :]  # Extract data for the single object
+label = singleobj.index.unique('label')  # Get the label of the object
+bands = singleobj.loc[label[0], :, :].index.get_level_values('band')[:].unique()  # Extract bands
+bands = ['zg','zr','zi','W1','W2']
+
+plt.figure(figsize=(12,6))
+
+for i,band in enumerate(bands):
+    if band in ['W1','W2']:
+        xout = np.linspace(0,4000,80).reshape(-1, 1) # X array for interpolation
+    else:
+        xout = np.linspace(0,1600,160).reshape(-1, 1) # X array for interpolation
+
+    kernel_gp = RationalQuadratic(length_scale=1, alpha=0.1)
+
+    band_lc = singleobj.loc[label[0], band, :]  # Extract light curve data for the band
+
+    # Clean data to remove times greater than a threshold (65000)
+    band_lc_clean = band_lc[band_lc.index.get_level_values('time') < 65000]
+    x, y, dy = np.array(band_lc_clean.index.get_level_values('time') - band_lc_clean.index.get_level_values('time')[0]), np.array(band_lc_clean.flux), np.array(band_lc_clean.err)
+
+    # Sort data based on time
+    x2, y2, dy2 = x[np.argsort(x)], y[np.argsort(x)], dy[np.argsort(x)]
+
+    # Check if there are enough points for interpolation
+    if len(x2) > 5 and not np.isnan(y2).any():
+        # Handle time overlaps in light curves
+        n = np.sum(x2 == 0)
+        for b in range(1, n):
+            x2[::b + 1] = x2[::b + 1] + 1 * 0.001
+
+        # Interpolate the data
+        f = interpolate.interp1d(x2, y2, kind='previous', fill_value="extrapolate")
+        df = interpolate.interp1d(x2, dy2, kind='previous', fill_value="extrapolate")
+        
+        gp = GaussianProcessRegressor(kernel=kernel_gp, alpha=dy2**2)
+        X = x2.reshape(-1, 1)
+
+        gp.fit(X, y2)
+
+    plt.subplot(2,3,i+1)
+    plt.errorbar(x2,y2,yerr=dy,marker='.',linestyle='',markersize=5)
+    plt.plot(xout,f(xout),linestyle='--',label='Nearest interpolation')
+    ypred,sigma = gp.predict(xout, return_std=True)
+    plt.plot(xout,ypred,linestyle='-',label='GP Regression rational quadratic Kernel')
+    plt.fill_between(xout.flatten(), ypred - 1.96 * sigma,ypred + 1.96 * sigma, alpha=0.2)
+    plt.text(50,0.32,band,size=15)
+    plt.xlabel(r'$\rm Time(MJD)$',size=15)
+    i+=1
+    #plt.ylim([0.1,0.4])
+
+
+plt.subplot(2,3,1)
+plt.ylabel(r'$\rm Flux(mJy)$',size=15)
+
+plt.subplot(2,3,6)
+plt.legend(fontsize=8)
+
+plt.tight_layout()
+```
+
+```{code-cell} ipython3
+from scipy import interpolate
+
+singleobj = df_lc.loc[8238, :, :, :]  # Extract data for the single object
+label = singleobj.index.unique('label')  # Get the label of the object
+bands = singleobj.loc[label[0], :, :].index.get_level_values('band')[:].unique()  # Extract bands
+bands = ['zg','zr','zi']#,'W1','W2']
+
+plt.figure(figsize=(10,6))
+plt.subplot(2,2,1)
+for i,band in enumerate(bands):
+    if band in ['W1','W2']:
+        xout = np.linspace(0,4000,80).reshape(-1, 1) # X array for interpolation
+    else:
+        xout = np.linspace(0,1600,160).reshape(-1, 1) # X array for interpolation
+
+    kernel_gp = RationalQuadratic(length_scale=1, alpha=0.1)
+
+    band_lc = singleobj.loc[label[0], band, :]  # Extract light curve data for the band
+
+    # Clean data to remove times greater than a threshold (65000)
+    band_lc_clean = band_lc[band_lc.index.get_level_values('time') < 65000]
+    x, y, dy = np.array(band_lc_clean.index.get_level_values('time') - band_lc_clean.index.get_level_values('time')[0]), np.array(band_lc_clean.flux), np.array(band_lc_clean.err)
+
+    # Sort data based on time
+    x2, y2, dy2 = x[np.argsort(x)], y[np.argsort(x)], dy[np.argsort(x)]
+
+    # Check if there are enough points for interpolation
+    if len(x2) > 5 and not np.isnan(y2).any():
+        # Handle time overlaps in light curves
+        n = np.sum(x2 == 0)
+        for b in range(1, n):
+            x2[::b + 1] = x2[::b + 1] + 1 * 0.001
+
+        # Interpolate the data
+        f = interpolate.interp1d(x2, y2, kind='previous', fill_value="extrapolate")
+        df = interpolate.interp1d(x2, dy2, kind='previous', fill_value="extrapolate")
+           
+    gpline, = plt.plot(xout,f(xout),linestyle='--')
+
+    line_color = gpline.get_color()  # Get the color of the line
+    plt.errorbar(x2,y2,yerr=dy,marker='.',linestyle='',markersize=5,label=band,color=line_color)
+    plt.xlabel(r'$\rm Time(MJD)$',size=15)
+    i+=1
+    #plt.ylim([0.1,0.4])
+plt.legend(loc=2)
+plt.ylabel(r'$\rm Flux(mJy)$',size=15)
+
+    
+plt.subplot(2,2,2)
+for i,band in enumerate(bands):
+    if band in ['W1','W2']:
+        xout = np.linspace(0,4000,80).reshape(-1, 1) # X array for interpolation
+    else:
+        xout = np.linspace(0,1600,160).reshape(-1, 1) # X array for interpolation
+
+    kernel_gp = RationalQuadratic(length_scale=1, alpha=0.1)
+    band_lc = singleobj.loc[label[0], band, :]  # Extract light curve data for the band
+
+    # Clean data to remove times greater than a threshold (65000)
+    band_lc_clean = band_lc[band_lc.index.get_level_values('time') < 65000]
+    x, y, dy = np.array(band_lc_clean.index.get_level_values('time') - band_lc_clean.index.get_level_values('time')[0]), np.array(band_lc_clean.flux), np.array(band_lc_clean.err)
+
+    # Sort data based on time
+    x2, y2, dy2 = x[np.argsort(x)], y[np.argsort(x)], dy[np.argsort(x)]
+
+    # Check if there are enough points for interpolation
+    if len(x2) > 5 and not np.isnan(y2).any():
+        # Handle time overlaps in light curves
+        n = np.sum(x2 == 0)
+        for b in range(1, n):
+            x2[::b + 1] = x2[::b + 1] + 1 * 0.001
+
+        gp = GaussianProcessRegressor(kernel=kernel_gp, alpha=dy2**2)
+        X = x2.reshape(-1, 1)
+
+        gp.fit(X, y2)
+    
+    ypred,sigma = gp.predict(xout, return_std=True)
+    gpline, = plt.plot(xout,ypred,linestyle='-')
+
+    line_color = gpline.get_color()  # Get the color of the line
+    plt.errorbar(x2,y2,yerr=dy,marker='.',linestyle='',markersize=5,label=band,color=line_color)
+
+    plt.fill_between(xout.flatten(), ypred - 1.96 * sigma,ypred + 1.96 * sigma, alpha=0.2,color=line_color)
+    plt.xlabel(r'$\rm Time(MJD)$',size=15)
+    i+=1
+    #plt.ylim([0.1,0.4])
+
+plt.subplot(2,2,3)
+for i,band in enumerate(['W1','W2']):
+    xout = np.linspace(0,4000,80).reshape(-1, 1) # X array for interpolation
+    kernel_gp = RationalQuadratic(length_scale=1, alpha=0.1)
+    band_lc = singleobj.loc[label[0], band, :]  # Extract light curve data for the band
+
+    band_lc_clean = band_lc[band_lc.index.get_level_values('time') < 65000]
+    x, y, dy = np.array(band_lc_clean.index.get_level_values('time') - band_lc_clean.index.get_level_values('time')[0]), np.array(band_lc_clean.flux), np.array(band_lc_clean.err)
+    x2, y2, dy2 = x[np.argsort(x)], y[np.argsort(x)], dy[np.argsort(x)]
+
+    # Check if there are enough points for interpolation
+    if len(x2) > 5 and not np.isnan(y2).any():
+        # Handle time overlaps in light curves
+        n = np.sum(x2 == 0)
+        for b in range(1, n):
+            x2[::b + 1] = x2[::b + 1] + 1 * 0.001
+
+        # Interpolate the data
+        f = interpolate.interp1d(x2, y2, kind='previous', fill_value="extrapolate")
+        df = interpolate.interp1d(x2, dy2, kind='previous', fill_value="extrapolate")
+        
+
+    gpline, = plt.plot(xout,f(xout),linestyle='-')
+    line_color = gpline.get_color()  # Get the color of the line
+    plt.errorbar(x2,y2,yerr=dy,marker='.',linestyle='',markersize=5,label=band,color=line_color)
+    #plt.fill_between(xout.flatten(), f(xout) - 1.96 * sigma,ypred + 1.96 * sigma, alpha=0.2,color=line_color)
+    plt.xlabel(r'$\rm Time(MJD)$',size=15)
+    i+=1
+plt.ylabel(r'$\rm Flux(mJy)$',size=15)
+plt.legend(loc=2)
+
+plt.subplot(2,2,4)
+for i,band in enumerate(['W1','W2']):
+    xout = np.linspace(0,4000,80).reshape(-1, 1) # X array for interpolation
+    kernel_gp = RationalQuadratic(length_scale=1, alpha=0.1)
+    band_lc = singleobj.loc[label[0], band, :]  # Extract light curve data for the band
+
+    band_lc_clean = band_lc[band_lc.index.get_level_values('time') < 65000]
+    x, y, dy = np.array(band_lc_clean.index.get_level_values('time') - band_lc_clean.index.get_level_values('time')[0]), np.array(band_lc_clean.flux), np.array(band_lc_clean.err)
+    x2, y2, dy2 = x[np.argsort(x)], y[np.argsort(x)], dy[np.argsort(x)]
+
+    # Check if there are enough points for interpolation
+    if len(x2) > 5 and not np.isnan(y2).any():
+        # Handle time overlaps in light curves
+        n = np.sum(x2 == 0)
+        for b in range(1, n):
+            x2[::b + 1] = x2[::b + 1] + 1 * 0.001
+
+        # Interpolate the data
+        f = interpolate.interp1d(x2, y2, kind='previous', fill_value="extrapolate")
+        df = interpolate.interp1d(x2, dy2, kind='previous', fill_value="extrapolate")
+        
+        gp = GaussianProcessRegressor(kernel=kernel_gp, alpha=dy2**2)
+        X = x2.reshape(-1, 1)
+        gp.fit(X, y2)
+    
+    ypred,sigma = gp.predict(xout, return_std=True)
+    gpline, = plt.plot(xout,ypred,linestyle='-')
+    line_color = gpline.get_color()  # Get the color of the line
+    plt.errorbar(x2,y2,yerr=dy,marker='.',linestyle='',markersize=5,label=band,color=line_color)
+    plt.fill_between(xout.flatten(), ypred - 1.96 * sigma,ypred + 1.96 * sigma, alpha=0.2,color=line_color)
+    plt.xlabel(r'$\rm Time(MJD)$',size=15)
+    i+=1
+
+plt.tight_layout()
+```
+
+```{code-cell} ipython3
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import RationalQuadratic, RBF
+from scipy.interpolate import interp1d
+import numpy as np
+from tqdm import tqdm
+import matplotlib.pyplot as plt
+
+def unified_lc_interpolation(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=160, numplots=1, low_limit_size=5):
+    x_ztf = np.linspace(0, 1600, xres).reshape(-1, 1)
+    x_wise = np.linspace(0, 4000, xres).reshape(-1, 1)
+    objids = df_lc.index.get_level_values('objectid')[:].unique()
+
+    kernel_gp = RationalQuadratic(length_scale=0.1, alpha=0.1)
+    kernel_wise = 1.0 * RBF(length_scale=200)
+
+    printcounter = 0
+    objects, dobjects, flabels, keeps = [], [], [], []
+    
+    for keepindex, obj in tqdm(enumerate(objids)):
+        singleobj = df_lc.loc[obj]
+        label = singleobj.index.unique('label')
+        bands = singleobj.loc[label[0]].index.get_level_values('band').unique()
+
+        keepobj = True
+        obj_newy, obj_newdy = [], []
+
+        for l, band in enumerate(bands_inlc):
+            if band not in bands:
+                keepobj = False
+                break
+
+            band_lc = singleobj.loc[(label[0], band)]
+            x, y, dy = band_lc.index.get_level_values('time'), band_lc['flux'], band_lc['err']
+            x2, y2, dy2 = x[np.argsort(x)], y[np.argsort(x)], dy[np.argsort(x)]
+
+            if len(x2) <= low_limit_size:
+                keepobj = False
+                break
+
+            X = x2.reshape(-1, 1)
+
+            try:
+                if band in ['W1', 'W2']:
+                    gp = GaussianProcessRegressor(kernel=kernel_wise, alpha=dy2**2)
+                    target_x = x_wise
+                else:
+                    gp = GaussianProcessRegressor(kernel=kernel_gp, alpha=dy2**2)
+                    target_x = x_ztf
+                
+                gp.fit(X, y2)
+                y_pred, sigma = gp.predict(target_x, return_std=True)
+
+                if np.any(np.isnan(y_pred)) or len(y_pred) == 0:  # Check for unsatisfactory GP results
+                    raise ValueError("GP interpolation failed or is unsatisfactory.")
+
+            except (ValueError, np.linalg.LinAlgError):
+                # Fallback to linear interpolation if GP fails or results are unsatisfactory
+                f = interp1d(x2, y2, kind='nearest', fill_value="extrapolate", bounds_error=False)
+                y_pred = f(target_x.flatten())
+
+            obj_newy.append(y_pred)
+            if printcounter < numplots:
+                plt.figure(figsize=(15, 5))
+                plt.errorbar(x2, y2, dy2, capsize=1.0, marker='.', linestyle='', label=f'{band} data')
+                plt.plot(target_x, y_pred, '--', label=f'{band} interpolation')
+                plt.legend()
+                plt.xlabel('Time')
+                plt.ylabel('Flux')
+                plt.title(f'Object {obj} - {band} Band')
+                plt.show()
+
+        if keepobj:
+            objects.append(obj_newy)
+            dobjects.append(obj_newdy)  # Placeholder for error values if necessary
+            flabels.append(label[0])
+            keeps.append(keepindex)
+            printcounter += 1
+
+    return np.array(objects), np.array(dobjects), flabels, keeps
+```
+
+```{code-cell} ipython3
 bands_inlc = ['zg','zr','zi']
 
-objects,dobjects,flabels,keeps = unify_lc(df_lc,bands_inlc,xres=160,numplots=5,low_limit_size=5) #nearest neightbor linear interpolation
-#objects,dobjects,flabels,keeps = unify_lc_gp(df_lc,bands_inlc,xres=160,numplots=5,low_limit_size=5) #Gaussian process unification
+#objects,dobjects,flabels,keeps = unify_lc(df_lc,bands_inlc,xres=160,numplots=5,low_limit_size=5) #nearest neightbor linear interpolation
+objects,dobjects,flabels,keeps = unified_lc_interpolation(df_lc,bands_inlc,xres=160,numplots=5,low_limit_size=5) #Gaussian process unification
 
 ## keeps can be used as index of objects that are kept in "objects" from
 ##the initial "df_lc", in case information about some properties of samplen(e.g., redshifts) is of interest this array of indecies would be helpful

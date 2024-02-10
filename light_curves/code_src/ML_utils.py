@@ -197,9 +197,7 @@ def unify_lc_gp(df_lc,bands_inlc=['zr','zi','zg'],xres=160,numplots=1,low_limit_
 
     #kernel = 1 * RBF(length_scale=200)
     #kernel = 1.0 * Matern(length_scale=20.0, nu=10)
-    kernel = RationalQuadratic(length_scale=0.1, alpha=0.1)
-    kernelw = 1.0 * RBF(length_scale=200)
-
+    kernel = RationalQuadratic(length_scale=1, alpha=0.1)
     
     printcounter = 0
     objects,dobjects,flabels,keeps = [],[],[],[]
@@ -224,18 +222,16 @@ def unify_lc_gp(df_lc,bands_inlc=['zr','zi','zg'],xres=160,numplots=1,low_limit_
 
                 x2,y2,dy2 = x[np.argsort(x)],y[np.argsort(x)],dy[np.argsort(x)]
                 if len(x2)>low_limit_size:
-
                     n = np.sum(x2==0)
                     for b in range(1,n): # this is a hack of shifting time of different lightcurves by a bit so I can interpolate!
                         x2[::b+1]=x2[::b+1]+1*0.001
                     X = x2.reshape(-1, 1)
+                    gp = GaussianProcessRegressor(kernel=kernel, alpha=dy2**2)
+                    gp.fit(X, y2)
+                    
                     if band =='W1' or band=='W2':
-                        gpw = GaussianProcessRegressor(kernel=kernelw, alpha=(dy2)**2)
-                        gpw.fit(X, y2)
                         obj_newy[l],obj_newdy[l] = gpw.predict(x_wise, return_std=True)
                     else:
-                        gp = GaussianProcessRegressor(kernel=kernel, alpha=dy2**2)
-                        gp.fit(X, y2)
                         obj_newy[l],obj_newdy[l] = gp.predict(x_ztf, return_std=True)
 
                     if printcounter<numplots:
@@ -288,19 +284,33 @@ def mean_fractional_variation(lc,dlc):
     fvar = (np.sqrt(varf-deltaf))/meanf
     return fvar
 
-def stat_bands(objects,dobjects,bands,sigmacl=5):
+def stat_bands(objects, dobjects, bands, sigmacl=5):
     '''
-    returns arrays with maximum,mean,std flux in the 5sigma clipped lightcurves of each band .
+    Returns arrays with maximum, mean, std flux in the 5sigma clipped lightcurves of each band.
     '''
-    fvar,maxarray,meanarray = np.zeros((len(bands),len(objects))),np.zeros((len(bands),len(objects))),np.zeros((len(bands),len(objects)))
-    for o,ob in enumerate(objects):
-        for b in range(len(bands)):
-            clipped_arr,l,u = stats.sigmaclip(ob[b], low=sigmacl, high=sigmacl)
-            clipped_varr,l,u = stats.sigmaclip(dobjects[o,b,:], low=sigmacl, high=sigmacl)
-            maxarray[b,o] = clipped_arr.max()
-            meanarray[b,o] = clipped_arr.mean()
-            fvar[b,o] = mean_fractional_variation(clipped_arr,clipped_varr)
-    return fvar,maxarray,meanarray
+    num_bands = len(bands)
+    num_objects = len(objects)
+    fvar = np.zeros((num_bands, num_objects))
+    maxarray = np.zeros((num_bands, num_objects))
+    meanarray = np.zeros((num_bands, num_objects))
+
+    for o, ob in enumerate(objects):
+        for b in range(num_bands):
+            clipped_arr, _, _ = stats.sigmaclip(ob[b], low=sigmacl, high=sigmacl)
+            clipped_varr, _, _ = stats.sigmaclip(dobjects[o, b, :], low=sigmacl, high=sigmacl)
+
+            # Check if clipped_arr is not empty
+            if clipped_arr.size > 0:
+                maxarray[b, o] = clipped_arr.max() if clipped_arr.size > 0 else 0
+                meanarray[b, o] = clipped_arr.mean() if clipped_arr.size > 0 else 0
+                fvar[b, o] = mean_fractional_variation(clipped_arr, clipped_varr) if clipped_arr.size > 0 else 0
+            else:
+                # Handle empty arrays by setting values to NaN or another appropriate value
+                maxarray[b, o] = 0
+                meanarray[b, o] = 0
+                fvar[b, o] = 0
+
+    return fvar, maxarray, meanarray
 
 
 def normalize_mean_objects(data):
