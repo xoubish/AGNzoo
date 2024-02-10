@@ -7,6 +7,10 @@ import pandas as pd
 
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
+from sklearn.gaussian_process.kernels import Matern
+from sklearn.gaussian_process.kernels import RationalQuadratic
+
+
 
 from tqdm import tqdm
 
@@ -143,7 +147,7 @@ def unify_lc(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=160, numplots=1, low_lim
 
                     # Plot data if within the numplots limit
                     if printcounter < numplots:
-                        plt.errorbar(x2, y2, dy2, capsize=1.0, marker='.', linestyle='', label=label[0] + band)
+                        plt.errorbar(x2, y2, dy2, capsize=1.0, marker='.', linestyle='', label=band)
                         if band in ['W1', 'W2']:
                             plt.plot(x_wise, f(x_wise), '--', label='nearest interpolation ' + str(band))
                         else:
@@ -161,11 +165,10 @@ def unify_lc(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=160, numplots=1, low_lim
                     keepobj = 0
 
             if printcounter<numplots:
-                plt.title('Object '+str(obj))#+' from '+label[0]+' et al.')
-                plt.xlabel('Time(MJD)')
-                plt.ylabel('Flux(mJy)')
+                plt.xlabel(r'$\rm Time(MJD)$',size=15)
+                plt.ylabel(r'$\rm Flux(mJy)$',size=15)
                 plt.legend()
-                plt.show()
+                plt.savefig('output/interp_ln_lc'+str(printcounter)+'.png')
                 printcounter+=1
 
 
@@ -192,6 +195,12 @@ def unify_lc_gp(df_lc,bands_inlc=['zr','zi','zg'],xres=160,numplots=1,low_limit_
     x_wise = np.linspace(0,4000,xres).reshape(-1, 1) # X array for interpolation
     objids = df_lc.index.get_level_values('objectid')[:].unique()
 
+    #kernel = 1 * RBF(length_scale=200)
+    #kernel = 1.0 * Matern(length_scale=20.0, nu=10)
+    kernel = RationalQuadratic(length_scale=0.1, alpha=0.1)
+    kernelw = 1.0 * RBF(length_scale=200)
+
+    
     printcounter = 0
     objects,dobjects,flabels,keeps = [],[],[],[]
     for keepindex,obj in tqdm(enumerate(objids)):
@@ -221,35 +230,33 @@ def unify_lc_gp(df_lc,bands_inlc=['zr','zi','zg'],xres=160,numplots=1,low_limit_
                         x2[::b+1]=x2[::b+1]+1*0.001
                     X = x2.reshape(-1, 1)
                     if band =='W1' or band=='W2':
-                        kernel = 1.0 * RBF(length_scale=200)
-                        gpw = GaussianProcessRegressor(kernel=kernel, alpha=(dy2)**2)
+                        gpw = GaussianProcessRegressor(kernel=kernelw, alpha=(dy2)**2)
                         gpw.fit(X, y2)
                         obj_newy[l],obj_newdy[l] = gpw.predict(x_wise, return_std=True)
                     else:
-                        kernel = 1.0 * RBF(length_scale=len(x_ztf)/len(x2))
                         gp = GaussianProcessRegressor(kernel=kernel, alpha=dy2**2)
                         gp.fit(X, y2)
                         obj_newy[l],obj_newdy[l] = gp.predict(x_ztf, return_std=True)
 
                     if printcounter<numplots:
-                        plt.errorbar(x2,y2,dy2 , capsize = 1.0,marker='.',linestyle='', label = label[0]+band)
+                        plt.errorbar(x2,y2,dy2 , capsize = 1.0,marker='.',linestyle='', label = band)
                         if band=='W1' or band=='W2':
                             y_pred,sigma = gpw.predict(x_wise, return_std=True)
                             plt.plot(x_wise,y_pred,'--',label='Gaussian Process Reg.'+str(band))
                             plt.fill_between(x_wise.flatten(), y_pred - 1.96 * sigma,y_pred + 1.96 * sigma, alpha=0.2, color='r')
                         else:
-                            kernel = 1.0 * RBF(length_scale=len(x_ztf)/len(x2))
                             y_pred,sigma = gp.predict(x_ztf, return_std=True)
                             plt.plot(x_ztf,y_pred,'--',label='Gaussian Process Reg.'+str(band))
                             plt.fill_between(x_ztf.flatten(), y_pred - 1.96 * sigma,y_pred + 1.96 * sigma, alpha=0.2, color='r')
                 else:
                     keepobj=0
             if (printcounter<numplots):
-                plt.title('Object '+str(obj))#+' from '+label[0]+' et al.')
-                plt.xlabel('Time(MJD)')
-                plt.ylabel('Flux(mJy)')
+                #plt.title('Object '+str(obj))#+' from '+label[0]+' et al.')
+                plt.xlabel(r'$\rm Time(MJD)$',size=15)
+                plt.ylabel(r'$\rm Flux(mJy)$',size=15)
                 plt.legend()
-                plt.show()
+                #plt.show()
+                plt.savefig('output/interp_gp_lc'+str(printcounter)+'.png')
                 printcounter+=1
         if keepobj:
             objects.append(obj_newy)

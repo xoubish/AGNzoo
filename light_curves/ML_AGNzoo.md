@@ -87,7 +87,9 @@ import warnings
 warnings.filterwarnings('ignore')
 
 plt.style.use('bmh')
-colors = [
+
+colors = ["#3F51B5", "#003153", "#0047AB", "#40826D", "#50C878", "#FFEA00", "#CC7722", "#E34234", "#E30022", "#D68A59", "#8A360F", "#826644", "#5C6BC0", "#002D62", "#0056B3", "#529987", "#66D98B", "#FFED47", "#E69C53", "#F2552C", "#EB4D55", "#E6A875", "#9F5A33", "#9C7C5B", "#2E37FE", "#76D7EA", "#007BA7", "#2E8B57", "#ADDFAD", "#FFFF31"]
+colors2 = [
     "#3F51B5",  # Ultramarine Blue
     "#003153",  # Prussian Blue
     "#0047AB",  # Cobalt Blue
@@ -101,9 +103,8 @@ colors = [
     "#8A360F",  # Burnt Sienna
     "#826644",  # Raw Umber
 ]
-colors = ["#3F51B5", "#003153", "#0047AB", "#40826D", "#50C878", "#FFEA00", "#CC7722", "#E34234", "#E30022", "#D68A59", "#8A360F", "#826644", "#5C6BC0", "#002D62", "#0056B3", "#529987", "#66D98B", "#FFED47", "#E69C53", "#F2552C", "#EB4D55", "#E6A875", "#9F5A33", "#9C7C5B", "#2E37FE", "#76D7EA", "#007BA7", "#2E8B57", "#ADDFAD", "#FFFF31"]
 
-custom_cmap = LinearSegmentedColormap.from_list("custom_theme", colors[1:])
+custom_cmap = LinearSegmentedColormap.from_list("custom_theme", colors2[1:])
 ```
 
 ***
@@ -122,6 +123,14 @@ df_lc = update_bitsums(df2) # remove all bitwise sums that had 64 in them
 
 ```{code-cell} ipython3
 df_lc
+```
+
+```{code-cell} ipython3
+from plot_functions import create_figures
+_ = create_figures(df_lc = df_lc, # either df_lc (serial call) or parallel_df_lc (parallel call)
+                   show_nbr_figures = 4,  # how many plots do you actually want to see?
+                   save_output = True ,  # should the resulting plots be saved?
+                  )
 ```
 
 ### 1.1) What is in this sample
@@ -189,25 +198,12 @@ for b in objid:
             timerange[bb].append(np.round(bands[:].max()-bands[:].min(),1))
 
 i=0
-#plt.title(r'Time range and cadence covered in each in each waveband averaged over this sample:')
-colors2 = [
-    "#5499C7",  # Light Blue, reflecting the mood of the Blue Period and early Cubism
-    "#AF7AC5",  # Soft Lavender for the Rose Period and some Cubist works
-    "#1B4F72",  # Deep Blue from the Blue Period
-    "#48C9B0",  # Aqua Green, for a touch of the vibrancy in his later works
-    "#F39C12",  # Bright Yellow, representing the light and contrast in his Synthetic Cubism
-    "#E74C3C",  # Bright Red, common in his later, more expressive works
-    "#5DADE2",  # Sky Blue, evoking the Mediterranean influence in his work
-    "#F7DC6F",  # Light Yellow, capturing the warmth and innovation of his Synthetic Cubism period
-    "#58D68D",  # Light Green, reflecting the use of color in his later life
-
-]
 colorlabel = [0,1,1,1,2,2,3,3,3,3,3,4,5,5,5,6,7,7,8]
 for el in cadence.keys():
     #print(el,len(cadence[el]),np.mean(cadence[el]),np.std(cadence[el]))
     #print(el,len(timerange[el]),np.mean(timerange[el]),np.std(timerange[el]))
-    ax1.scatter(np.mean(cadence[el]),np.mean(timerange[el]),s=len(timerange[el]),alpha=0.7,c=colors2[colorlabel[i]])
-    ax1.errorbar(np.mean(cadence[el]),np.mean(timerange[el]),label=el,yerr=np.std(timerange[el]),xerr=np.std(cadence[el]),alpha=0.2,c=colors2[colorlabel[i]])
+    ax1.scatter(np.mean(cadence[el]),np.mean(timerange[el]),s=len(timerange[el]),alpha=0.7,c=colors[colorlabel[i]+1])
+    ax1.errorbar(np.mean(cadence[el]),np.mean(timerange[el]),label=el,yerr=np.std(timerange[el]),xerr=np.std(cadence[el]),alpha=0.2,c=colors[colorlabel[i]+1])
     i+=1
     
 ax1.annotate('ZTF', # text to display
@@ -249,12 +245,12 @@ for b in objid:
     bands = singleobj.loc[label[0],:,:].index.get_level_values('band')[:].unique()
     seen.update(bands)
     
-h = bottom_ax.bar(range(len(tiklabels)), seen.values(),color="#1B4F72")
+h = bottom_ax.bar(range(len(tiklabels)), seen.values(),color= "#3F51B5")
 bottom_ax.set_xticks(range(len(tiklabels)),tiklabels,fontsize=15,rotation=90)
 bottom_ax.set_ylabel(r'$\rm number\ of\ lightcurves$',size=15)
 plt.tight_layout()
 
-plt.savefig('plots/sample.png')
+plt.savefig('output/sample.png')
 
 ```
 
@@ -270,8 +266,8 @@ The unify_lc, or unify_lc_gp functions do the unification of the lightcurve arra
 ```{code-cell} ipython3
 bands_inlc = ['zg','zr','zi']
 
-objects,dobjects,flabels,keeps = unify_lc(df_lc,bands_inlc,xres=60,numplots=5,low_limit_size=5) #nearest neightbor linear interpolation
-#objects,dobjects,flabels,keeps = unify_lc_gp(df_lc,bands_inlc,xres=60,numplots=5,low_limit_size=5) #Gaussian process unification
+objects,dobjects,flabels,keeps = unify_lc(df_lc,bands_inlc,xres=160,numplots=5,low_limit_size=5) #nearest neightbor linear interpolation
+#objects,dobjects,flabels,keeps = unify_lc_gp(df_lc,bands_inlc,xres=160,numplots=5,low_limit_size=5) #Gaussian process unification
 
 ## keeps can be used as index of objects that are kept in "objects" from
 ##the initial "df_lc", in case information about some properties of samplen(e.g., redshifts) is of interest this array of indecies would be helpful
@@ -382,7 +378,7 @@ The left panel is colorcoded by the origin of the sample. The middle panel shows
 
 ```{code-cell} ipython3
 # Define a grid
-grid_resolution = 15# Number of cells in the grid
+grid_resolution = 12# Number of cells in the grid
 x_min, x_max = mapper.embedding_[:, 0].min(), mapper.embedding_[:, 0].max()
 y_min, y_max = mapper.embedding_[:, 1].min(), mapper.embedding_[:, 1].max()
 x_grid = np.linspace(x_min, x_max, grid_resolution)
@@ -406,7 +402,7 @@ for i in range(grid_resolution - 1):
             mean_property2[j, i] = np.mean(propfvar[mask])
 
 
-plt.figure(figsize=(12,4))
+plt.figure(figsize=(10,4))
 plt.subplot(1,2,1)
 plt.title('mean brightness')
 cf = plt.contourf(x_centers, y_centers, mean_property1, cmap='viridis', alpha=0.9)
@@ -761,7 +757,7 @@ skipping the normalization of lightcurves, further separates turn on/off CLAGNs 
 
 ```{code-cell} ipython3
 bands_inlc = ['zg','zr','zi','W1','W2']
-objects,dobjects,flabels,keeps = unify_lc(df_lc,bands_inlc,xres=30,numplots=3)
+objects,dobjects,flabels,keeps = unify_lc_gp(df_lc,bands_inlc,xres=30,numplots=10)
 # calculate some basic statistics
 fvar, maxarray, meanarray = stat_bands(objects,dobjects,bands_inlc)
 dat_notnormal = combine_bands(objects,bands_inlc)
@@ -781,8 +777,8 @@ for index, f in enumerate(fzr):
 ```{code-cell} ipython3
 plt.figure(figsize=(18,6))
 markersize=200
-#mapper = umap.UMAP(n_neighbors=50,min_dist=0.9,metric='manhattan',random_state=4).fit(data)
-mapper = umap.UMAP(n_neighbors=50,min_dist=0.9,metric=dtw_distance,random_state=20).fit(data) #this distance takes long
+mapper = umap.UMAP(n_neighbors=50,min_dist=0.9,metric='manhattan',random_state=4).fit(data)
+#mapper = umap.UMAP(n_neighbors=50,min_dist=0.9,metric=dtw_distance,random_state=20).fit(data) #this distance takes long
 
 
 ax1 = plt.subplot(1,3,2)
