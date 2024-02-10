@@ -20,7 +20,7 @@ cache/
 *.log
 *.parquet
 *.pdf
-*.png
+.png
 
 # Jupyter Notebook
 .ipynb_checkpoints

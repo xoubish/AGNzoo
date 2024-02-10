@@ -60,6 +60,8 @@ import matplotlib as mpl
 import matplotlib.cm as cm
 from matplotlib.colors import LinearSegmentedColormap
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
 
 import numpy as np
 import pandas as pd
@@ -99,6 +101,7 @@ colors = [
     "#8A360F",  # Burnt Sienna
     "#826644",  # Raw Umber
 ]
+colors = ["#3F51B5", "#003153", "#0047AB", "#40826D", "#50C878", "#FFEA00", "#CC7722", "#E34234", "#E30022", "#D68A59", "#8A360F", "#826644", "#5C6BC0", "#002D62", "#0056B3", "#529987", "#66D98B", "#FFED47", "#E69C53", "#F2552C", "#EB4D55", "#E6A875", "#9F5A33", "#9C7C5B", "#2E37FE", "#76D7EA", "#007BA7", "#2E8B57", "#ADDFAD", "#FFFF31"]
 
 custom_cmap = LinearSegmentedColormap.from_list("custom_theme", colors[1:])
 ```
@@ -124,13 +127,25 @@ df_lc
 ### 1.1) What is in this sample
 
 To effectively undertake machine learning (ML) in addressing a specific question, it's imperative to have a clear understanding of the data we'll be utilizing. This understanding aids in selecting the appropriate ML approach and, critically, allows for informed and necessary data preprocessing. For example whether a normalization is needed, and what band to choose for normalization.
+In this particular example, the largest subsamples of AGNs, all with a criteria on redshift (z<1), are from the optical spectra by the [SDSS quasar sample DR16Q](https://www.sdss4.org/dr17/algorithms/qso_catalog/), the value added SDSS spectra from [SPIDERS](https://www.sdss.org/dr18/bhm/programs/spiders/), and a subset of AGNs selected in MIR WISE bands based on their variability ([csv in data folder credit RChary](https://ui.adsabs.harvard.edu/abs/2019AAS...23333004P/abstract)). We also include some smaller samples from the literature to see where they sit compared to the rest of the population and if they are localized on the 2D projection. These include the Changing Look AGNs from the literature (e.g., [LaMassa et al. 2015](https://ui.adsabs.harvard.edu/abs/2015ApJ...800..144L/abstract), [Lyu et al. 2022](https://ui.adsabs.harvard.edu/abs/2022ApJ...927..227L/abstract), [Hon et al. 2022](https://ui.adsabs.harvard.edu/abs/2022MNRAS.511...54H/abstract)), a sample which showed variability in Galex UV images ([Wasleske et al. 2022](https://ui.adsabs.harvard.edu/abs/2022ApJ...933...37W/abstract)), a sample of variable sources identified in optical Palomar observarions ([Baldassare et al. 2020](https://ui.adsabs.harvard.edu/abs/2020ApJ...896...10B/abstract)), and the optically variable AGNs in the COSMOS field from a three year program on VLT([De Cicco et al. 2019](https://ui.adsabs.harvard.edu/abs/2019A%26A...627A..33D/abstract)). We also include 30 Tidal Disruption Event coordinates identified from ZTF light curves [Hammerstein et al. 2023](https://iopscience.iop.org/article/10.3847/1538-4357/aca283/meta).
+The histogram shows the number of lightcurves which ended up in the multi-index data frame from each of the archive calls in different wavebands/filters.
 
 ```{code-cell} ipython3
+tiklabels = ['Fermi','ZTF g','ZTF i','ZTF r','WISE 1','WISE 2',
+             'Pan-STARRS i','Pan-STARRS r','Pan-STARRS g','Pan-STARRS z','Pan-STARRS y',
+            'IceCube','GAIA G', 'GAIA BP', 'GAIA RP','GRB','Kepler','K2','TESS']
+
+# Create the figure
+fig = plt.figure(figsize=(10, 10))
+gs = gridspec.GridSpec(3, 3, height_ratios=[2, 2, 2], width_ratios=[1.5,1.5,2])
+
+# Create the subplots
+ax0 = fig.add_subplot(gs[0:2, 0:2])  # Top left, taking two-thirds of the width
+ax1 = fig.add_subplot(gs[0:2, -1])  # Top right, taking one-third of the width
+bottom_ax = fig.add_subplot(gs[2, :])      # Bottom, spanning the full width
+
 objid = df_lc.index.get_level_values('objectid')[:].unique()
 seen = Counter()
-
-
-
 for b in objid:
     singleobj = df_lc.loc[b,:,:,:]
     label = singleobj.index.unique('label')
@@ -140,36 +155,24 @@ for b in objid:
     #active_labels = translate_bitwise_sum_to_labels(label[0])
     seen.update(active_labels)
 #changing order of labels in dictionary only for text to be readable on the plot
-key_order = ('SDSS_QSO', 'SPIDER_AGN','SPIDER_BL','SPIDER_QSOBL', 'SPIDER_AGNBL',
+key_order = ('SDSS_QSO', 'SPIDER_BL','SPIDER_QSOBL', 'SPIDER_AGNBL','SPIDER_AGN',
              'WISE_Variable','Optical_Variable','Galex_Variable','Turn-on', 'Turn-off','TDE')
 new_queue = OrderedDict()
 for k in key_order:
     new_queue[k] = seen[k]
 
-plt.figure(figsize=(8,8))
-plt.title(r'Sample consists of:',size=15)
-h = plt.pie(new_queue.values(),labels=new_queue.keys(),autopct=autopct_format(new_queue.values()), textprops={'fontsize': 15},startangle=30,  labeldistance=1.1, wedgeprops = { 'linewidth' : 3, 'edgecolor' : 'white' }, colors=colors)
-```
+h = ax0.pie(new_queue.values(),labels=new_queue.keys(),autopct=autopct_format(new_queue.values()), textprops={'fontsize': 12},startangle=210,  labeldistance=1.1, wedgeprops = { 'linewidth' : 3, 'edgecolor' : 'white' }, colors=colors[1:])
 
-In this particular example, the largest subsamples of AGNs, all with a criteria on redshift (z<1), are from the optical spectra by the [SDSS quasar sample DR16Q](https://www.sdss4.org/dr17/algorithms/qso_catalog/), the value added SDSS spectra from [SPIDERS](https://www.sdss.org/dr18/bhm/programs/spiders/), and a subset of AGNs selected in MIR WISE bands based on their variability ([csv in data folder credit RChary](https://ui.adsabs.harvard.edu/abs/2019AAS...23333004P/abstract)). We also include some smaller samples from the literature to see where they sit compared to the rest of the population and if they are localized on the 2D projection. These include the Changing Look AGNs from the literature (e.g., [LaMassa et al. 2015](https://ui.adsabs.harvard.edu/abs/2015ApJ...800..144L/abstract), [Lyu et al. 2022](https://ui.adsabs.harvard.edu/abs/2022ApJ...927..227L/abstract), [Hon et al. 2022](https://ui.adsabs.harvard.edu/abs/2022MNRAS.511...54H/abstract)), a sample which showed variability in Galex UV images ([Wasleske et al. 2022](https://ui.adsabs.harvard.edu/abs/2022ApJ...933...37W/abstract)), a sample of variable sources identified in optical Palomar observarions ([Baldassare et al. 2020](https://ui.adsabs.harvard.edu/abs/2020ApJ...896...10B/abstract)), and the optically variable AGNs in the COSMOS field from a three year program on VLT([De Cicco et al. 2019](https://ui.adsabs.harvard.edu/abs/2019A%26A...627A..33D/abstract)). We also include 30 Tidal Disruption Event coordinates identified from ZTF light curves [Hammerstein et al. 2023](https://iopscience.iop.org/article/10.3847/1538-4357/aca283/meta).
 
-```{code-cell} ipython3
+# Plot on the second subplot in the first row
 seen = Counter()
 for b in objid:
     singleobj = df_lc.loc[b,:,:,:]
     label = singleobj.index.unique('label')
     bands = singleobj.loc[label[0],:,:].index.get_level_values('band')[:].unique()
     seen.update(bands)
+    
 
-plt.figure(figsize=(20,4))
-plt.title(r'Number of lightcurves in each waveband in this sample:',size=20)
-h = plt.bar(seen.keys(), seen.values())
-plt.ylabel(r'#',size=20)
-```
-
-The histogram shows the number of lightcurves which ended up in the multi-index data frame from each of the archive calls in different wavebands/filters.
-
-```{code-cell} ipython3
 cadence = dict((el,[]) for el in seen.keys())
 timerange = dict((el,[]) for el in seen.keys())
 
@@ -185,18 +188,63 @@ for b in objid:
         if bands[:].max()-bands[:].min()>0:
             timerange[bb].append(np.round(bands[:].max()-bands[:].min(),1))
 
-plt.figure(figsize=(20,4))
-plt.title(r'Time range and cadence covered in each in each waveband averaged over this sample:')
+i=0
+#plt.title(r'Time range and cadence covered in each in each waveband averaged over this sample:')
 for el in cadence.keys():
     #print(el,len(cadence[el]),np.mean(cadence[el]),np.std(cadence[el]))
     #print(el,len(timerange[el]),np.mean(timerange[el]),np.std(timerange[el]))
-    plt.scatter(np.mean(timerange[el]),np.mean(cadence[el]),label=el,s=len(timerange[el]))
-    plt.errorbar(np.mean(timerange[el]),np.mean(cadence[el]),xerr=np.std(timerange[el]),yerr=np.std(cadence[el]),alpha=0.2)
-    plt.annotate(el,(np.mean(timerange[el]),np.mean(cadence[el])+2),size=12, rotation=40)
-plt.ylabel(r'Average number of visits',size=20)
-plt.xlabel(r'Average baseline (days)',size=20)
-plt.xlim([0,4000])
-plt.yscale('log')
+    ax1.scatter(np.mean(cadence[el]),np.mean(timerange[el]),s=len(timerange[el]),alpha=0.6,c=colors[i+3])
+    ax1.errorbar(np.mean(cadence[el]),np.mean(timerange[el]),label=el,yerr=np.std(timerange[el]),xerr=np.std(cadence[el]),alpha=0.2,c=colors[i+3])
+    i+=1
+
+ax1.annotate('ZTF', # text to display
+             (120, 1300),        # text location
+             size=12, rotation=40 )
+ax1.annotate('WISE', # text to display
+             (20, 3800),        # text location
+             size=12, rotation=40 )
+ax1.annotate('GAIA', # text to display
+             (15, 700),        # text location
+             size=12, rotation=40 )
+ax1.annotate('Pan-STARRS', # text to display
+             (22, 1600),        # text location
+             size=12, rotation=40 )
+ax1.annotate('IceCube', # text to display
+             (1, 1500),        # text location
+             size=12, rotation=40 )
+ax1.annotate('TESS', # text to display
+             (200, 500),        # text location
+             size=12, rotation=40 )
+ax1.annotate('Kepler', # text to display
+             (200, 200),        # text location
+             size=12, rotation=40 )
+ax1.annotate('K2', # text to display
+             (180, 20),        # text location
+             size=12, rotation=40 )
+
+ax1.annotate('GRB', # text to display
+             (1, 10),        # text location
+             size=12, rotation=40 )
+
+#ax1.legend()
+ax1.set_xlabel(r'$\rm Average\ number\ of\ visits$',size=15)
+ax1.set_ylabel(r'$\rm Average\ baseline\ (days)$',size=15)
+ax1.set_xscale('log')
+
+# Remove the unused subplot (bottom right)
+seen = Counter()
+for b in objid:
+    singleobj = df_lc.loc[b,:,:,:]
+    label = singleobj.index.unique('label')
+    bands = singleobj.loc[label[0],:,:].index.get_level_values('band')[:].unique()
+    seen.update(bands)
+    
+h = bottom_ax.bar(range(len(tiklabels)), seen.values(),color=colors[0])
+bottom_ax.set_xticks(range(len(tiklabels)),tiklabels,fontsize=15,rotation=90)
+bottom_ax.set_ylabel(r'$\rm number\ of\ lightcurves$',size=15)
+plt.tight_layout()
+
+plt.savefig('plots/sample.png')
 ```
 
 While from the histogram plot we see which bands have the highest number of observed lightcurves, what might matter more in finding/selecting variability or changing look in lightcurves is the cadence and the average baseline of observations. For instance, Panstarrs has a large number of lightcurve detections in our sample, but from the figure above we see that the average number of visits and the baseline for those observations are considerably less than ZTF. WISE also shows the longest baseline of observations which is suitable to finding longer term variability in objects.
