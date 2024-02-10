@@ -82,7 +82,7 @@ def autopct_format(values):
     return my_format
 
 
-def unify_lc(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=160, numplots=1, low_limit_size=5):
+def unify_lc(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=320, numplots=1, low_limit_size=5):
     '''
     Function to preprocess and unify time dimension of light curve data with linear interpolation.
 
@@ -96,7 +96,7 @@ def unify_lc(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=160, numplots=1, low_lim
 
     # Creating linearly spaced arrays for interpolation for different instruments
     x_ztf = np.linspace(0, 1600, xres)  # For ZTF
-    x_wise = np.linspace(0, 4000, xres)  # For WISE
+    x_wise = np.linspace(0, 4000, int(xres/4))  # For WISE
 
     # Extract unique object IDs from the DataFrame
     objids = df_lc.index.get_level_values('objectid')[:].unique()
@@ -123,11 +123,9 @@ def unify_lc(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=160, numplots=1, low_lim
             obj_newdy = [[] for _ in range(len(bands_inlc))]
 
             keepobj = 1  # Set keepobj to 1 (true) initially
-
             # Process each band in the included bands
             for l, band in enumerate(bands_inlc):
                 band_lc = singleobj.loc[label[0], band, :]  # Extract light curve data for the band
-                # Clean data to remove times greater than a threshold (65000)
                 band_lc_clean = band_lc[band_lc.index.get_level_values('time') < 65000]
                 x, y, dy = np.array(band_lc_clean.index.get_level_values('time') - band_lc_clean.index.get_level_values('time')[0]), np.array(band_lc_clean.flux), np.array(band_lc_clean.err)
 
@@ -135,7 +133,7 @@ def unify_lc(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=160, numplots=1, low_lim
                 x2, y2, dy2 = x[np.argsort(x)], y[np.argsort(x)], dy[np.argsort(x)]
 
                 # Check if there are enough points for interpolation
-                if len(x2) > 5:
+                if (len(x2) > low_limit_size) and not np.isnan(y2).any():
                     # Handle time overlaps in light curves
                     n = np.sum(x2 == 0)
                     for b in range(1, n):
@@ -161,7 +159,7 @@ def unify_lc(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=160, numplots=1, low_lim
                         obj_newy[l] = f(x_ztf)#/f(x_ztf).max()
                         obj_newdy[l] = df(x_ztf)#/f(x_ztf).max()
 
-                if len(obj_newy[l])<low_limit_size: #don't keep objects which have less than x datapoints in any keeping bands
+                else: #don't keep objects which have less than x datapoints in any keeping bands
                     keepobj = 0
 
             if printcounter<numplots:
@@ -180,7 +178,7 @@ def unify_lc(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=160, numplots=1, low_lim
     return np.array(objects),np.array(dobjects),flabels,keeps
 
 
-def unify_lc_gp(df_lc,bands_inlc=['zr','zi','zg'],xres=160,numplots=1,low_limit_size=5):
+def unify_lc_gp(df_lc,bands_inlc=['zr','zi','zg'],xres=320,numplots=1,low_limit_size=5):
     '''
     Function to preprocess and unify the time dimension of light curve data using Gaussian Processes.
 
@@ -192,7 +190,7 @@ def unify_lc_gp(df_lc,bands_inlc=['zr','zi','zg'],xres=160,numplots=1,low_limit_
     - low_limit_size: Minimum number of data points required in a band (default: 5).
     '''
     x_ztf = np.linspace(0,1600,xres).reshape(-1, 1) # X array for interpolation
-    x_wise = np.linspace(0,4000,xres).reshape(-1, 1) # X array for interpolation
+    x_wise = np.linspace(0,4000,int(xres/4)).reshape(-1, 1) # X array for interpolation
     objids = df_lc.index.get_level_values('objectid')[:].unique()
 
     #kernel = 1 * RBF(length_scale=200)
@@ -221,7 +219,7 @@ def unify_lc_gp(df_lc,bands_inlc=['zr','zi','zg'],xres=160,numplots=1,low_limit_
                 x,y,dy = np.array(band_lc_clean.index.get_level_values('time')-band_lc_clean.index.get_level_values('time')[0]),np.array(band_lc_clean.flux),np.array(band_lc_clean.err)
 
                 x2,y2,dy2 = x[np.argsort(x)],y[np.argsort(x)],dy[np.argsort(x)]
-                if len(x2)>low_limit_size:
+                if len(x2)>low_limit_size and not np.isnan(y2).any():
                     n = np.sum(x2==0)
                     for b in range(1,n): # this is a hack of shifting time of different lightcurves by a bit so I can interpolate!
                         x2[::b+1]=x2[::b+1]+1*0.001
@@ -259,8 +257,9 @@ def unify_lc_gp(df_lc,bands_inlc=['zr','zi','zg'],xres=160,numplots=1,low_limit_
             dobjects.append(obj_newdy)
             flabels.append(label[0])
             keeps.append(keepindex)
+        #if keepindex>10:
     return np.array(objects),np.array(dobjects),flabels,keeps
-
+            
 def combine_bands(objects,bands):
     '''
     combine all lightcurves in individual bands of an object
