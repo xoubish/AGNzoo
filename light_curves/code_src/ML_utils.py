@@ -82,7 +82,7 @@ def autopct_format(values):
     return my_format
 
 
-def unify_lc(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=320, numplots=1, low_limit_size=5):
+def unify_lc(df_lc, redshifts, bands_inlc=['zr', 'zi', 'zg'], xres=320, numplots=1, low_limit_size=5):
     '''
     Function to preprocess and unify time dimension of light curve data with linear interpolation.
 
@@ -103,11 +103,12 @@ def unify_lc(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=320, numplots=1, low_lim
 
     # Initialize variables for storing results
     printcounter = 0
-    objects, dobjects, flabels, keeps = [], [], [], []
+    objects, dobjects, flabels, keeps, zlist = [], [], [], [], []
     colors = ["#3F51B5","#40826D","#E30022"]
 
     # Iterate over each object ID
     for keepindex, obj in tqdm(enumerate(objids)):
+        redshift = redshifts[obj]
         singleobj = df_lc.loc[obj, :, :, :]  # Extract data for the single object
         label = singleobj.index.unique('label')  # Get the label of the object
         bands = singleobj.loc[label[0], :, :].index.get_level_values('band')[:].unique()  # Extract bands
@@ -179,7 +180,8 @@ def unify_lc(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=320, numplots=1, low_lim
             dobjects.append(obj_newdy)
             flabels.append(label[0])
             keeps.append(keepindex)
-    return np.array(objects),np.array(dobjects),flabels,keeps
+            zlist.append(redshift)
+    return np.array(objects),np.array(dobjects),flabels,keeps,np.array(zlist)
 
 
 def unify_lc_gp(df_lc,bands_inlc=['zr','zi','zg'],xres=320,numplots=1,low_limit_size=5):

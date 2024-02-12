@@ -114,14 +114,22 @@ custom_cmap = LinearSegmentedColormap.from_list("custom_theme", colors2[1:])
 Here we load a parquet file of light curves generated using the multiband_lc notebook. One can build the sample from different sources in the literature and grab the data from archives of interes.
 
 ```{code-cell} ipython3
-#sample_table = Table.read('data/agnsample_feb7.ecsv', format="ascii.ecsv") # if needed, contains coordinates, redshift and all labels
+samp = pd.read_csv('data/AGNsample_06Feb24.csv')
+redshifts = samp['redshift']
 df = pd.read_parquet('data/df_lc_020724.parquet.gzip')
 
 df2 = df[df.index.get_level_values('label') != '64'] # remove 64 for SPIDER only as its too large
-df_lc = update_bitsums(df2) # remove all bitwise sums that had 64 in them
+df_lc = update_bitsums(df2,label_num=64) # remove all bitwise sums that had 64 in them
+# Filter rows with the specific label
+#df4 = df3[df3.index.get_level_values('label') == '64'] # remove 64 for SPIDER only as its too large
+# Randomly select rows to drop
+#rows_to_drop_indices = np.random.choice(df4.index, size=int(len(df4) * 1), replace=False)
+# Drop these rows
+#df_lc = df3.drop(rows_to_drop_indices)
 ```
 
 ```{code-cell} ipython3
+print(len(df_lc))
 df_lc
 ```
 
@@ -164,7 +172,7 @@ for b in objid:
     #active_labels = translate_bitwise_sum_to_labels(label[0])
     seen.update(active_labels)
 #changing order of labels in dictionary only for text to be readable on the plot
-key_order = ('SDSS_QSO', 'SPIDER_BL','SPIDER_QSOBL', 'SPIDER_AGNBL','SPIDER_AGN',
+key_order = ('SDSS-QSO', 'SPIDER_BL','SPIDER_QSOBL', 'SPIDER_AGNBL','SPIDER_AGN',
              'WISE_Variable','Optical_Variable','Galex_Variable','Turn-on', 'Turn-off','TDE')
 new_queue = OrderedDict()
 for k in key_order:
@@ -278,7 +286,7 @@ singleobj = df_lc.loc[randomid, :, :, :]  # Extract data for the single object
 label = singleobj.index.unique('label')  # Get the label of the object
 bands = singleobj.loc[label[0], :, :].index.get_level_values('band')[:].unique()  # Extract bands
 bands = ['zg','zr','zi','W1','W2']
-print(randomid,translate_bitwise_sum_to_labels(int(label[0])))
+print(randomid,redshifts[randomid],translate_bitwise_sum_to_labels(int(label[0])))
 
 indco = []
 plt.figure(figsize=(8,4))
@@ -344,7 +352,7 @@ plt.tight_layout()
 ```{code-cell} ipython3
 bands_inlc = ['zg','zr','zi']
 
-objects,dobjects,flabels,keeps = unify_lc(df_lc,bands_inlc,xres=160,numplots=3,low_limit_size=5) #nearest neightbor linear interpolation
+objects,dobjects,flabels,keeps,zlist = unify_lc(df_lc, redshifts,bands_inlc,xres=160,numplots=3,low_limit_size=5) #nearest neightbor linear interpolation
 #objects,dobjects,flabels,keeps = unify_lc_gp(df_lc,bands_inlc,xres=160,numplots=3,low_limit_size=5) #Gaussian process unification
 
 ## keeps can be used as index of objects that are kept in "objects" from
@@ -365,6 +373,7 @@ datm = normalize_clipmax_objects(dat_notnormal,meanarray,band = 1)
 # shuffle data incase the ML routines are sensitive to order
 data,fzr,p = shuffle_datalabel(dat,flabels)
 fvar_arr,maximum_arr,average_arr = fvar[:,p],maxarray[:,p],meanarray[:,p]
+redshift_shuffled = zlist[p]
 
 labc = {}  # Initialize labc to hold indices of each unique label
 for index, f in enumerate(fzr):
@@ -416,12 +425,12 @@ plt.ylabel(r'Normalized Flux (mean r band)',size=15)
 Now we can train a UMAP with the processed data vectors above. Different choices for the number of neighbors, minimum distance and metric can be made and a parameter space can be explored. We show here our preferred combination given this data. We choose manhattan distance (also called [the L1 distance](https://en.wikipedia.org/wiki/Taxicab_geometry)) as it is optimal for the kind of grid we interpolated on, for instance we want the distance to not change if there are observations missing. Another metric appropriate for our purpose in time domain analysis is Dynamic Time Warping ([DTW](https://en.wikipedia.org/wiki/Dynamic_time_warping)), which is insensitive to a shift in time. This is helpful as we interpolate the observations onto a grid starting from time 0 and when discussing variability we care less about when it happens and more about whether and how strong it happened. As the measurement of the DTW distance takes longer compared to the other metrics we show examples here with manhattan and only show one example exploring the parameter space including a DTW metric in the last cell of this notebook.
 
 ```{code-cell} ipython3
-plt.figure(figsize=(18,6))
+plt.figure(figsize=(18,12))
 markersize=200
 mapper = umap.UMAP(n_neighbors=50,min_dist=0.9,metric='manhattan',random_state=20).fit(data)
 
 
-ax1 = plt.subplot(1,3,2)
+ax1 = plt.subplot(2,2,3)
 ax1.set_title(r'mean brightness',size=20)
 cf = ax1.scatter(mapper.embedding_[:,0],mapper.embedding_[:,1],s=markersize,c=np.log10(np.nansum(meanarray,axis=0)),edgecolor='gray')
 plt.axis('off')
@@ -430,7 +439,7 @@ cax = divider.append_axes("right", size="5%", pad=0.05)
 plt.colorbar(cf,cax=cax)
 
 
-ax0 = plt.subplot(1,3,3)
+ax0 = plt.subplot(2,2,4)
 ax0.set_title(r'mean fractional variation',size=20)
 cf = ax0.scatter(mapper.embedding_[:,0],mapper.embedding_[:,1],s=markersize,c=stretch_small_values_arctan(np.nansum(fvar_arr,axis=0),factor=3),edgecolor='gray')
 plt.axis('off')
@@ -438,7 +447,7 @@ divider = make_axes_locatable(ax0)
 cax = divider.append_axes("right", size="5%", pad=0.05)
 plt.colorbar(cf,cax=cax)
 
-ax2 = plt.subplot(1,3,1)
+ax2 = plt.subplot(2,2,1)
 ax2.set_title('sample origin',size=20)
 counts = 1
 for label, indices in labc.items():
@@ -447,6 +456,14 @@ for label, indices in labc.items():
 plt.legend(fontsize=12)
 #plt.colorbar(cf)
 plt.axis('off')
+
+ax3 = plt.subplot(2,2,2)
+ax3.set_title('redshifts',size=20)
+ax3.scatter(mapper.embedding_[:,0],mapper.embedding_[:,1],s=markersize,c = redshift_shuffled,alpha=0.5,edgecolor='gray')
+plt.axis('off')
+divider = make_axes_locatable(ax3)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+plt.colorbar(cf,cax=cax)
 
 plt.tight_layout()
 #plt.savefig('umap-ztf.png')
@@ -835,7 +852,7 @@ skipping the normalization of lightcurves, further separates turn on/off CLAGNs 
 
 ```{code-cell} ipython3
 bands_inlc = ['zg','zr','zi','W1','W2']
-objects,dobjects,flabels,keeps = unify_lc(df_lc,bands_inlc,xres=80,numplots=0)
+objects,dobjects,flabels,keeps = unify_lc_gp(df_lc,bands_inlc,xres=80,numplots=0)
 # calculate some basic statistics
 fvar, maxarray, meanarray = stat_bands(objects,dobjects,bands_inlc)
 dat_notnormal = combine_bands(objects,bands_inlc)
@@ -850,6 +867,8 @@ for index, f in enumerate(fzr):
         if label not in labc:
             labc[label] = []  # Initialize the list for this label if it's not already in labc
         labc[label].append(index)  # Append the current index to the list of indices for this label
+        
+#np.savez('GP_ZTFWISE.npz', data=data, labc=labc,allow)
 ```
 
 ```{code-cell} ipython3
@@ -907,7 +926,7 @@ for label in laborder:
         plt.contourf(x_edges[:-1], y_edges[:-1], prob.T, levels=20, alpha=0.8,cmap=custom_cmap)
         plt.colorbar()
         plt.axis('off')
-        cf = ax0.scatter(mapper.embedding_[indices,0],mapper.embedding_[indices,1],s=80,alpha=0.5,edgecolor='gray',label=label,c=colors[i])
+        cf = ax0.scatter(mapper.embedding_[indices,0],mapper.embedding_[indices,1],s=80,alpha=0.5,edgecolor='gray',label=label,c=colors[i+4])
         i+=1
 ax0.legend(loc=4,fontsize=7)
 ax0.axis('off')
@@ -952,7 +971,7 @@ plt.axis('off')
 ```
 
 ```{code-cell} ipython3
-#np.savez('GP_ZTFWISE.npz', data=data, labc=labc,allow)
+
 ```
 
 ```{code-cell} ipython3
