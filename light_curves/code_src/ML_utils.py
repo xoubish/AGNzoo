@@ -96,7 +96,7 @@ def unify_lc(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=320, numplots=1, low_lim
 
     # Creating linearly spaced arrays for interpolation for different instruments
     x_ztf = np.linspace(0, 1600, xres)  # For ZTF
-    x_wise = np.linspace(0, 4000, int(xres/4))  # For WISE
+    x_wise = np.linspace(0, 4000, xres)  # For WISE
 
     # Extract unique object IDs from the DataFrame
     objids = df_lc.index.get_level_values('objectid')[:].unique()
@@ -104,6 +104,7 @@ def unify_lc(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=320, numplots=1, low_lim
     # Initialize variables for storing results
     printcounter = 0
     objects, dobjects, flabels, keeps = [], [], [], []
+    colors = ["#3F51B5","#40826D","#E30022"]
 
     # Iterate over each object ID
     for keepindex, obj in tqdm(enumerate(objids)):
@@ -116,7 +117,7 @@ def unify_lc(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=320, numplots=1, low_lim
         # Check if the object has all required bands
         if len(np.intersect1d(bands, bands_inlc)) == len(bands_inlc):
             if printcounter < numplots:
-                fig, ax = plt.subplots(figsize=(15, 5))  # Set up plot if within numplots limit
+                fig, ax = plt.subplots(figsize=(15, 4))  # Set up plot if within numplots limit
 
             # Initialize arrays for new interpolated Y and dY values
             obj_newy = [[] for _ in range(len(bands_inlc))]
@@ -145,11 +146,14 @@ def unify_lc(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=320, numplots=1, low_lim
 
                     # Plot data if within the numplots limit
                     if printcounter < numplots:
-                        plt.errorbar(x2, y2, dy2, capsize=1.0, marker='.', linestyle='', label=band)
                         if band in ['W1', 'W2']:
-                            plt.plot(x_wise, f(x_wise), '--', label='nearest interpolation ' + str(band))
+                            gline, = plt.plot(x_wise, f(x_wise), '--', label='nearest interpolation ' + str(band),color = colors[l])
+                            gcolor=gline.get_color()
                         else:
-                            plt.plot(x_ztf, f(x_ztf), '--', label='nearest interpolation ' + str(band))
+                            gline, = plt.plot(x_ztf, f(x_ztf), '--', label='nearest interpolation ' + str(band),color = colors[l])
+                            gcolor=gline.get_color()
+
+                        plt.errorbar(x2, y2, dy2, capsize=1.0, marker='.', linestyle='',alpha=0.4,color=gcolor)
 
                     # Assign interpolated values based on the band
                     if band =='W1' or band=='W2':
@@ -190,7 +194,7 @@ def unify_lc_gp(df_lc,bands_inlc=['zr','zi','zg'],xres=320,numplots=1,low_limit_
     - low_limit_size: Minimum number of data points required in a band (default: 5).
     '''
     x_ztf = np.linspace(0,1600,xres).reshape(-1, 1) # X array for interpolation
-    x_wise = np.linspace(0,4000,int(xres/4)).reshape(-1, 1) # X array for interpolation
+    x_wise = np.linspace(0,4000,xres).reshape(-1, 1) # X array for interpolation
     objids = df_lc.index.get_level_values('objectid')[:].unique()
 
     #kernel = 1 * RBF(length_scale=200)
@@ -199,6 +203,8 @@ def unify_lc_gp(df_lc,bands_inlc=['zr','zi','zg'],xres=320,numplots=1,low_limit_
     
     printcounter = 0
     objects,dobjects,flabels,keeps = [],[],[],[]
+    colors = ["#3F51B5","#40826D","#E30022"]
+
     for keepindex,obj in tqdm(enumerate(objids)):
 
         singleobj = df_lc.loc[obj,:,:,:]
@@ -208,7 +214,7 @@ def unify_lc_gp(df_lc,bands_inlc=['zr','zi','zg'],xres=320,numplots=1,low_limit_
         
         if len(np.intersect1d(bands,bands_inlc))==len(bands_inlc):
             if printcounter<numplots:
-                fig= plt.subplots(figsize=(15,5))
+                fig= plt.subplots(figsize=(15,4))
 
             obj_newy = [ [] for _ in range(len(bands_inlc))]
             obj_newdy = [ [] for _ in range(len(bands_inlc))]
@@ -225,7 +231,7 @@ def unify_lc_gp(df_lc,bands_inlc=['zr','zi','zg'],xres=320,numplots=1,low_limit_
                     for b in range(1,n): # this is a hack of shifting time of different lightcurves by a bit so I can interpolate!
                         x2[::b+1]=x2[::b+1]+1*0.001
                     X = x2.reshape(-1, 1)
-                    gp = GaussianProcessRegressor(kernel=kernel, alpha=dy2**3)
+                    gp = GaussianProcessRegressor(kernel=kernel, alpha=dy2**2)
                     gp.fit(X, y2)
                     
                     if band =='W1' or band=='W2':
@@ -234,15 +240,18 @@ def unify_lc_gp(df_lc,bands_inlc=['zr','zi','zg'],xres=320,numplots=1,low_limit_
                         obj_newy[l],obj_newdy[l] = gp.predict(x_ztf, return_std=True)
 
                     if printcounter<numplots:
-                        plt.errorbar(x2,y2,dy2 , capsize = 1.0,marker='.',linestyle='', label = band)
                         if band=='W1' or band=='W2':
                             y_pred,sigma = gp.predict(x_wise, return_std=True)
-                            plt.plot(x_wise,y_pred,'--',label='Gaussian Process Reg.'+str(band))
-                            plt.fill_between(x_wise.flatten(), y_pred - 1.96 * sigma,y_pred + 1.96 * sigma, alpha=0.2, color='r')
+                            gpline, = plt.plot(x_wise,y_pred,'--',label='Gaussian Process Reg.'+str(band),color = colors[l])
+                            gcolor= gpline.get_color()
+                            plt.fill_between(x_wise.flatten(), y_pred - 1.96 * sigma,y_pred + 1.96 * sigma, alpha=0.2, color=gcolor)
                         else:
                             y_pred,sigma = gp.predict(x_ztf, return_std=True)
-                            plt.plot(x_ztf,y_pred,'--',label='Gaussian Process Reg.'+str(band))
-                            plt.fill_between(x_ztf.flatten(), y_pred - 1.96 * sigma,y_pred + 1.96 * sigma, alpha=0.2, color='r')
+                            gpline, = plt.plot(x_ztf,y_pred,'--',label='Gaussian Process Reg.'+str(band),color = colors[l])
+                            gcolor= gpline.get_color()
+                            plt.fill_between(x_ztf.flatten(), y_pred - 1.96 * sigma,y_pred + 1.96 * sigma, alpha=0.2, color=gcolor)
+                        plt.errorbar(x2,y2,dy2 , capsize = 1.0,marker='.',linestyle='',alpha=0.4,color=gcolor)
+
                 else:
                     keepobj=0
             if (printcounter<numplots):

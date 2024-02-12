@@ -280,13 +280,14 @@ bands = singleobj.loc[label[0], :, :].index.get_level_values('band')[:].unique()
 bands = ['zg','zr','zi','W1','W2']
 print(randomid,translate_bitwise_sum_to_labels(int(label[0])))
 
-plt.figure(figsize=(12,6))
-
+indco = []
+plt.figure(figsize=(8,4))
+colorlabels=[8,4,7,0,1]
 for i,band in enumerate(bands):
     if band in ['W1','W2']:
-        xout = np.linspace(0,4000,80).reshape(-1, 1) # X array for interpolation
+        xout = np.linspace(0,4000,160).reshape(-1, 1) # X array for interpolation
     else:
-        xout = np.linspace(0,1600,320).reshape(-1, 1) # X array for interpolation
+        xout = np.linspace(0,1600,160).reshape(-1, 1) # X array for interpolation
 
     kernel_gp = RationalQuadratic(length_scale=1, alpha=0.1)
 
@@ -313,27 +314,29 @@ for i,band in enumerate(bands):
         gp = GaussianProcessRegressor(kernel=kernel_gp, alpha=dy2**3)
         X = x2.reshape(-1, 1)
         gp.fit(X, y2)
-
-    plt.subplot(2,3,i+1)
-    plt.errorbar(x2,y2,yerr=dy,marker='.',linestyle='',markersize=5)
-    plt.plot(xout,f(xout),linestyle='--',label='Nearest interpolation')
+    
     ypred,sigma = gp.predict(xout, return_std=True)
-    gpline, = plt.plot(xout,ypred,linestyle='-',label='GP Regression rational quadratic Kernel')
+
+    if band in ['zg','zr','zi']:
+        xout = 2*xout
+        x2 = 2*x2
+    #plt.subplot(2,2,i+1)
+    gpline, =     plt.plot(xout,f(xout),linestyle='--',color=colors2[colorlabels[i]])#,label='Nearest interpolation')
     gcolor = gpline.get_color()
+    plt.errorbar(x2,y2,yerr=dy,marker='.',linestyle='',markersize=5,label=band,color=gcolor)
+    plt.plot(xout,ypred,linestyle='-',color=gcolor)#,label='GP Regression rational quadratic Kernel')
     plt.fill_between(xout.flatten(), ypred - 1.96 * sigma,ypred + 1.96 * sigma, alpha=0.2,color=gcolor)
-    plt.text(50,np.max(y2),band,size=15)
-    plt.xlabel(r'$\rm Time(MJD)$',size=15)
+    #plt.text(50,np.max(y2),band,size=15)
     i+=1
     #plt.ylim([0.1,0.4])
+    
+#plt.subplot(2,2,1)
+    #plt.ylabel(r'$\rm Flux(mJy)$',size=15)
 
-
-plt.subplot(2,3,1)
+#plt.subplot(2,2,3)
+plt.legend(loc=4)
 plt.ylabel(r'$\rm Flux(mJy)$',size=15)
-
-plt.subplot(2,3,4)
-plt.legend(loc=3)
-plt.ylabel(r'$\rm Flux(mJy)$',size=15)
-
+plt.xlabel(r'$\rm Time(MJD)$',size=15)
 
 plt.tight_layout()
 ```
@@ -341,8 +344,8 @@ plt.tight_layout()
 ```{code-cell} ipython3
 bands_inlc = ['zg','zr','zi']
 
-objects,dobjects,flabels,keeps = unify_lc(df_lc,bands_inlc,xres=160,numplots=5,low_limit_size=5) #nearest neightbor linear interpolation
-#objects,dobjects,flabels,keeps = unify_lc_gp(df_lc,bands_inlc,xres=160,numplots=5,low_limit_size=5) #Gaussian process unification
+objects,dobjects,flabels,keeps = unify_lc(df_lc,bands_inlc,xres=160,numplots=3,low_limit_size=5) #nearest neightbor linear interpolation
+#objects,dobjects,flabels,keeps = unify_lc_gp(df_lc,bands_inlc,xres=160,numplots=3,low_limit_size=5) #Gaussian process unification
 
 ## keeps can be used as index of objects that are kept in "objects" from
 ##the initial "df_lc", in case information about some properties of samplen(e.g., redshifts) is of interest this array of indecies would be helpful
@@ -832,7 +835,7 @@ skipping the normalization of lightcurves, further separates turn on/off CLAGNs 
 
 ```{code-cell} ipython3
 bands_inlc = ['zg','zr','zi','W1','W2']
-objects,dobjects,flabels,keeps = unify_lc_gp(df_lc,bands_inlc,xres=320,numplots=5)
+objects,dobjects,flabels,keeps = unify_lc(df_lc,bands_inlc,xres=80,numplots=0)
 # calculate some basic statistics
 fvar, maxarray, meanarray = stat_bands(objects,dobjects,bands_inlc)
 dat_notnormal = combine_bands(objects,bands_inlc)
@@ -884,6 +887,7 @@ plt.legend(fontsize=12)
 plt.axis('off')
 
 plt.tight_layout()
+#plt.savefig('output/umap1-ztfwise-gp.png')
 ```
 
 ```{code-cell} ipython3
@@ -892,19 +896,98 @@ hist, x_edges, y_edges = np.histogram2d(mapper.embedding_[:, 0], mapper.embeddin
 plt.figure(figsize=(15,12))
 i=1
 ax0 = plt.subplot(4,4,12)
-for label, indices in sorted(labc.items()):
-    hist_per_cluster, _, _ = np.histogram2d(mapper.embedding_[indices,0], mapper.embedding_[indices,1], bins=(x_edges, y_edges))
-    prob = hist_per_cluster / hist
-    plt.subplot(4,4,i)
-    plt.title(label)
-    plt.contourf(x_edges[:-1], y_edges[:-1], prob.T, levels=20, alpha=0.8,cmap=custom_cmap)
-    plt.colorbar()
-    plt.axis('off')
-    cf = ax0.scatter(mapper.embedding_[indices,0],mapper.embedding_[indices,1],s=80,alpha=0.5,edgecolor='gray',label=label,c=colors[i-1])
-    i+=1
+laborder = ['SDSS_QSO','WISE_Variable','Optical_Variable','Galex_Variable','SPIDER_AGN','SPIDER_AGNBL','SPIDER_QSOBL','SPIDER_BL','Turn-on','Turn-off','TDE']
+for label in laborder:
+    if label in labc:
+        indices = labc[label]
+        hist_per_cluster, _, _ = np.histogram2d(mapper.embedding_[indices,0], mapper.embedding_[indices,1], bins=(x_edges, y_edges))
+        prob = hist_per_cluster / hist
+        plt.subplot(4,4,i)
+        plt.title(label)
+        plt.contourf(x_edges[:-1], y_edges[:-1], prob.T, levels=20, alpha=0.8,cmap=custom_cmap)
+        plt.colorbar()
+        plt.axis('off')
+        cf = ax0.scatter(mapper.embedding_[indices,0],mapper.embedding_[indices,1],s=80,alpha=0.5,edgecolor='gray',label=label,c=colors[i])
+        i+=1
 ax0.legend(loc=4,fontsize=7)
 ax0.axis('off')
 plt.tight_layout()
+#plt.savefig('output/umap2-ztfwise-gp.png')
+```
+
+```{code-cell} ipython3
+plt.figure(figsize=(12,10))
+markersize=200
+
+mapper = umap.UMAP(n_neighbors=50,min_dist=0.9,metric='euclidean',random_state=20).fit(data)
+ax0 = plt.subplot(2,2,1)
+ax0.set_title(r'Euclidean Distance, min_d=0.9, n_neighbors=50',size=12)
+for label, indices in (labc.items()):
+     cf = ax0.scatter(mapper.embedding_[indices,0],mapper.embedding_[indices,1],s=80,alpha=0.5,edgecolor='gray',label=label)
+plt.axis('off')
+
+mapper = umap.UMAP(n_neighbors=50,min_dist=0.9,metric='manhattan',random_state=20).fit(data)
+ax0 = plt.subplot(2,2,2)
+ax0.set_title(r'Manhattan Distance, min_d=0.9, n_neighbors=50',size=12)
+for label, indices in (labc.items()):
+     cf = ax0.scatter(mapper.embedding_[indices,0],mapper.embedding_[indices,1],s=80,alpha=0.5,edgecolor='gray',label=label)
+plt.axis('off')
+
+
+mapperg = umap.UMAP(n_neighbors=50,min_dist=0.9,metric=dtw_distance,random_state=20).fit(data) #this distance takes long
+ax2 = plt.subplot(2,2,3)
+ax2.set_title(r'DTW Distance, min_d=0.9,n_neighbors=50',size=12)
+for label, indices in (labc.items()):
+     cf = ax2.scatter(mapper.embedding_[indices,0],mapper.embedding_[indices,1],s=80,alpha=0.5,edgecolor='gray',label=label)
+plt.axis('off')
+
+
+mapper = umap.UMAP(n_neighbors=50,min_dist=0.1,metric='manhattan',random_state=20).fit(data)
+ax0 = plt.subplot(2,2,4)
+ax0.set_title(r'Manhattan Distance, min_d=0.1, n_neighbors=50',size=12)
+for label, indices in (labc.items()):
+     cf = ax0.scatter(mapper.embedding_[indices,0],mapper.embedding_[indices,1],s=80,alpha=0.5,edgecolor='gray',label=label)
+plt.legend(fontsize=12)
+plt.axis('off')
+```
+
+```{code-cell} ipython3
+#np.savez('GP_ZTFWISE.npz', data=data, labc=labc,allow)
+```
+
+```{code-cell} ipython3
+d = np.load('GP_ZTFWISE.npz',allow_pickle=True)
+dd = d['data']
+dl = d['labc']
+```
+
+```{code-cell} ipython3
+mapper = umap.UMAP(n_neighbors=50,min_dist=0.9,metric='euclidean',random_state=20).fit(dd)
+```
+
+```{code-cell} ipython3
+# Calculate 2D histogram
+hist, x_edges, y_edges = np.histogram2d(mapper.embedding_[:, 0], mapper.embedding_[:, 1], bins=12)
+plt.figure(figsize=(15,12))
+i=1
+ax0 = plt.subplot(4,4,12)
+laborder = ['SDSS_QSO','WISE_Variable','Optical_Variable','Galex_Variable','SPIDER_AGN','SPIDER_AGNBL','SPIDER_QSOBL','SPIDER_BL','Turn-on','Turn-off','TDE']
+for label in laborder:
+    if label in labc:
+        indices = labc[label]
+        hist_per_cluster, _, _ = np.histogram2d(mapper.embedding_[indices,0], mapper.embedding_[indices,1], bins=(x_edges, y_edges))
+        prob = hist_per_cluster / hist
+        plt.subplot(4,4,i)
+        plt.title(label)
+        plt.contourf(x_edges[:-1], y_edges[:-1], prob.T, levels=20, alpha=0.8,cmap=custom_cmap)
+        plt.colorbar()
+        plt.axis('off')
+        #cf = ax0.scatter(mapper.embedding_[indices,0],mapper.embedding_[indices,1],s=80,alpha=0.5,edgecolor='gray',label=label,c=colors[i-1])
+        i+=1
+ax0.legend(loc=4,fontsize=7)
+ax0.axis('off')
+plt.tight_layout()
+#plt.savefig('output/umap2-ztfwise-gp.png')
 ```
 
 ## 5) Wise bands alone
