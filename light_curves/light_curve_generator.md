@@ -117,7 +117,7 @@ labels = []
 #get_lyu_sample(coords, labels)  #z32022ApJ...927..227L
 #get_lopeznavas_sample(coords, labels)  #2022MNRAS.513L..57L
 #get_hon_sample(coords, labels)  #2022MNRAS.511...54H
-get_yang_sample(coords, labels)   #2018ApJ...862..109Y
+#get_yang_sample(coords, labels)   #2018ApJ...862..109Y
 
 # Get some "normal" QSOs 
 # there are ~500K of these, so choose the number based on
@@ -129,7 +129,7 @@ get_yang_sample(coords, labels)   #2018ApJ...862..109Y
 
 # Remove duplicates, attach an objectid to the coords,
 # convert to astropy table to keep all relevant info together
-sample_table = clean_sample(coords, labels)
+#sample_table = clean_sample(coords, labels)
 ```
 
 ### 1.1 Build your own sample
@@ -158,7 +158,7 @@ sample_table.write('data/input_sample.ecsv', format='ascii.ecsv', overwrite = Tr
 Do only this step from this section when you have a previously generated sample table
 
 ```{code-cell} ipython3
-sample_table = Table.read('data/input_sample.ecsv', format='ascii.ecsv')
+sample_table = Table.read('data/agnsample_feb11.ecsv', format='ascii.ecsv')
 ```
 
 ### 1.4 Initialize data structure to hold the light curves

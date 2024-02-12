@@ -114,12 +114,18 @@ custom_cmap = LinearSegmentedColormap.from_list("custom_theme", colors2[1:])
 Here we load a parquet file of light curves generated using the multiband_lc notebook. One can build the sample from different sources in the literature and grab the data from archives of interes.
 
 ```{code-cell} ipython3
+translate_bitwise_sum_to_labels(1)
+```
+
+```{code-cell} ipython3
 samp = pd.read_csv('data/AGNsample_06Feb24.csv')
 redshifts = samp['redshift']
+
 df = pd.read_parquet('data/df_lc_020724.parquet.gzip')
 
-df2 = df[df.index.get_level_values('label') != '64'] # remove 64 for SPIDER only as its too large
+df2 = df[df.index.get_level_values('label') !='64'] # remove 64 for SPIDER only as its too large
 df_lc = update_bitsums(df2,label_num=64) # remove all bitwise sums that had 64 in them
+
 # Filter rows with the specific label
 #df4 = df3[df3.index.get_level_values('label') == '64'] # remove 64 for SPIDER only as its too large
 # Randomly select rows to drop
@@ -129,7 +135,6 @@ df_lc = update_bitsums(df2,label_num=64) # remove all bitwise sums that had 64 i
 ```
 
 ```{code-cell} ipython3
-print(len(df_lc))
 df_lc
 ```
 

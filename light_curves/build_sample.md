@@ -13,7 +13,7 @@ jupyter:
 ---
 
 # Build AGN final catalog sample 
-By Shooby, Last edit Feb 6th
+By Shooby, Last edit Feb 12th
 
 ```python
 import sys
@@ -168,7 +168,7 @@ print('SPIDER spec QSO BL:',str(len(a['SDSS_RA'][uqso_agnbl])))
 
 ```python
 VAGN = pd.read_csv('data/WISE_MIR_variable_AGN_with_PS1_photometry_and_SDSS_redshift.csv')
-uwise = (VAGN['SDSS_redshift']>)&(VAGN['SDSS_redshift']<zmax)
+uwise = (VAGN['SDSS_redshift']>0.1)&(VAGN['SDSS_redshift']<zmax)
 vagn_labels = ['WISE_Variable' for ra in VAGN['SDSS_RA'][uwise]]
 update_or_append_multiple(VAGN['SDSS_RA'][uwise],VAGN['SDSS_Dec'][uwise],VAGN['SDSS_redshift'][uwise],vagn_labels)
 print('WISE Variable sources: ',len(vagn_labels))
