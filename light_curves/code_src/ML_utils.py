@@ -76,7 +76,7 @@ def autopct_format(values):
         total = sum(values)
         val = int(round(pct*total/100.0))
         #return '{:.1f}%\n({v:d})'.format(pct, v=val)
-        return '{:.1f}%'.format(pct)
+        return val#'{:.1f}%'.format(pct)
     
 
     return my_format
@@ -104,7 +104,7 @@ def unify_lc(df_lc, redshifts, bands_inlc=['zr', 'zi', 'zg'], xres=320, numplots
     # Initialize variables for storing results
     printcounter = 0
     objects, dobjects, flabels, keeps, zlist = [], [], [], [], []
-    colors = ["#3F51B5","#40826D","#E30022","#FFEA00","#E34234"]
+    colors = ["#3F51B5","#40826D","#E30022","k","orange"]
 
     # Iterate over each object ID
     for keepindex, obj in tqdm(enumerate(objids)):
@@ -114,7 +114,6 @@ def unify_lc(df_lc, redshifts, bands_inlc=['zr', 'zi', 'zg'], xres=320, numplots
         bands = singleobj.loc[label[0], :, :].index.get_level_values('band')[:].unique()  # Extract bands
 
         keepobj = 0  # Flag to determine if the object should be kept
-
         # Check if the object has all required bands
         if len(np.intersect1d(bands, bands_inlc)) == len(bands_inlc):
             if printcounter < numplots:
@@ -171,6 +170,7 @@ def unify_lc(df_lc, redshifts, bands_inlc=['zr', 'zi', 'zg'], xres=320, numplots
                 plt.xlabel(r'$\rm Time(MJD)$',size=15)
                 plt.ylabel(r'$\rm Flux(mJy)$',size=15)
                 plt.legend()
+                #plt.show()
                 plt.savefig('output/interp_ln_lc'+str(printcounter)+'.png')
                 printcounter+=1
 
@@ -184,7 +184,7 @@ def unify_lc(df_lc, redshifts, bands_inlc=['zr', 'zi', 'zg'], xres=320, numplots
     return np.array(objects),np.array(dobjects),flabels,keeps,np.array(zlist)
 
 
-def unify_lc_gp(df_lc,bands_inlc=['zr','zi','zg'],xres=320,numplots=1,low_limit_size=5):
+def unify_lc_gp(df_lc,redshifts,bands_inlc=['zr','zi','zg'],xres=320,numplots=1,low_limit_size=5):
     '''
     Function to preprocess and unify the time dimension of light curve data using Gaussian Processes.
 
@@ -204,10 +204,11 @@ def unify_lc_gp(df_lc,bands_inlc=['zr','zi','zg'],xres=320,numplots=1,low_limit_
     kernel = RationalQuadratic(length_scale=1, alpha=0.1)
     
     printcounter = 0
-    objects,dobjects,flabels,keeps = [],[],[],[]
-    colors = ["#3F51B5","#40826D","#E30022"]
+    objects,dobjects,flabels,keeps,zlist = [],[],[],[],[]
+    colors = ["#3F51B5","#40826D","#E30022","k","orange"]
 
     for keepindex,obj in tqdm(enumerate(objids)):
+        redshift = redshifts[obj]
 
         singleobj = df_lc.loc[obj,:,:,:]
         label = singleobj.index.unique('label')
@@ -269,8 +270,10 @@ def unify_lc_gp(df_lc,bands_inlc=['zr','zi','zg'],xres=320,numplots=1,low_limit_
             dobjects.append(obj_newdy)
             flabels.append(label[0])
             keeps.append(keepindex)
+            zlist.append(redshift)
+
         #if keepindex>10:
-    return np.array(objects),np.array(dobjects),flabels,keeps
+    return np.array(objects),np.array(dobjects),flabels,keeps,np.array(zlist)
             
 def combine_bands(objects,bands):
     '''
