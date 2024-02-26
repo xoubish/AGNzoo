@@ -114,7 +114,7 @@ colors3 = [
     "#ADD8E6", # LightBlue, for the peaceful skies and distant horizons
 ]
 
-
+color4 = ['#3182bd','#6baed6','#9ecae1','#e6550d','#fd8d3c','#fdd0a2','#31a354','#a1d99b', '#c7e9c0', '#756bb1', '#bcbddc', '#dadaeb', '#969696', '#bdbdbd','#d9d9d9']
 custom_cmap = LinearSegmentedColormap.from_list("custom_theme", colors2[1:])
 ```
 
@@ -185,32 +185,30 @@ for index, f in enumerate(fzr):
 ```{code-cell} ipython3
 # Create the figure
 fig = plt.figure(figsize=(12, 8))
-gs = gridspec.GridSpec(2, 4, height_ratios=[1, 2], width_ratios=[1,1,1,1])
+gs = gridspec.GridSpec(2, 4, height_ratios=[1, 1], width_ratios=[1,1,1,1])
 
 # Create the subplots
-ax0 = fig.add_subplot(gs[0:1, 0:1])  
-ax1 = fig.add_subplot(gs[0:1, 1:4])
+ax0 = fig.add_subplot(gs[0:1, 0:2])  
+ax1 = fig.add_subplot(gs[0:1, 2:4])
 ax2 = fig.add_subplot(gs[1:2, 0:2])  
 ax3 = fig.add_subplot(gs[1:2, 2:4])
 
 objid = df_lc.index.get_level_values('objectid')[:].unique()
+
 seen = Counter()
-for b in objid:
-    singleobj = df_lc.loc[b,:,:,:]
-    label = singleobj.index.unique('label')
-    # Translate the bitwise sum back to active labels
-    bitwise_sum = int(label[0])  # Convert to integer
+for (objectid, label), singleobj in df_lc.groupby(level=["objectid", "label"]):
+    bitwise_sum = int(label)
     active_labels = translate_bitwise_sum_to_labels(bitwise_sum)
     #active_labels = translate_bitwise_sum_to_labels(label[0])
     seen.update(active_labels)
 #changing order of labels in dictionary only for text to be readable on the plot
 key_order = ('SDSS_QSO','SPIDER_BL','SPIDER_QSOBL', 'SPIDER_AGNBL',
-             'WISE_Variable','Optical_Variable','Galex_Variable','Turn-on', 'Turn-off','TDE','Fermi_Blazars')
+             'WISE_Variable','Optical_Variable','Galex_Variable','Turn-on', 'Turn-off','TDE')
 new_queue = OrderedDict()
 for k in key_order:
     new_queue[k] = seen[k]
-
-h = ax2.pie(new_queue.values(),labels=new_queue.keys(),autopct=autopct_format(new_queue.values()), textprops={'fontsize': 12},startangle=210,  labeldistance=1.1, wedgeprops = { 'linewidth' : 3, 'edgecolor' : 'white' }, colors=colors3[:])
+    
+h = ax0.pie(new_queue.values(),labels=new_queue.keys(),autopct=autopct_format(new_queue.values()), textprops={'fontsize': 12},startangle=210,  labeldistance=1.1, wedgeprops = { 'linewidth' : 3, 'edgecolor' : 'white' }, colors=color4[2:])
 
 seen2 = Counter()
 for f in fzr:
@@ -222,97 +220,75 @@ for k in key_order:
     new_queue[k] = seen2[k]
 
 
-h = ax3.pie(new_queue.values(),labels=new_queue.keys(),autopct=autopct_format(new_queue.values()), textprops={'fontsize': 12},startangle=180,  labeldistance=1.1, wedgeprops = { 'linewidth' : 3, 'edgecolor' : 'white' }, colors=colors3[:])
+h = ax2.pie(new_queue.values(),labels=new_queue.keys(),autopct=autopct_format(new_queue.values()), textprops={'fontsize': 12},startangle=180,  labeldistance=1.1, wedgeprops = { 'linewidth' : 3, 'edgecolor' : 'white' }, colors=color4[2:])
 
  
-
-# Plot on the second subplot in the first row
-seen = Counter()
-for b in objid:
-    singleobj = df_lc.loc[b,:,:,:]
-    label = singleobj.index.unique('label')
-    bands = singleobj.loc[label[0],:,:].index.get_level_values('band')[:].unique()
-    seen.update(bands)
-    
 #####################################################################################################
+seen = Counter()
+seen = df_lc.reset_index().groupby('band').objectid.nunique().to_dict()
 
 cadence = dict((el,[]) for el in seen.keys())
 timerange = dict((el,[]) for el in seen.keys())
 
-for b in objid:
-    singleobj = df_lc.loc[b,:,:,:]
-    label = singleobj.index.unique('label')
-    bband = singleobj.index.unique('band')
-    for bb in bband:
-        bands = singleobj.loc[label[0],bb,:].index.get_level_values('time')[:]
-        #bands.values
-        #print(bb,len(bands[:]),np.round(bands[:].max()-bands[:].min(),1))
-        cadence[bb].append(len(bands[:]))
-        if bands[:].max()-bands[:].min()>0:
-            timerange[bb].append(np.round(bands[:].max()-bands[:].min(),1))
+for (_, band), times in df_lc.reset_index().groupby(["objectid", "band"]).time:
+    cadence[band].append(len(times))
+    if times.max() - times.min() > 0:
+        timerange[band].append(np.round(times.max() - times.min(), 1))
+
 
 i=0
-colorlabel =[0,1,2,3,3,3,4,4,4,4,4,2,5,5,5,6,7]
+colorlabel =[0,1,2,0,3,0,6,5,5,8,8,8,8,8,9,9,9]
+
+
 for el in cadence.keys():
     #print(el,len(cadence[el]),np.mean(cadence[el]),np.std(cadence[el]))
     #print(el,len(timerange[el]),np.mean(timerange[el]),np.std(timerange[el]))
-    ax0.scatter(np.mean(cadence[el]),np.mean(timerange[el]),s=80,alpha=0.7,c=colors3[colorlabel[i]+1])
-    ax0.errorbar(np.mean(cadence[el]),np.mean(timerange[el]),label=el,yerr=np.std(timerange[el]),xerr=np.std(cadence[el]),alpha=0.2,c=colors3[colorlabel[i]+1])
+    ax1.scatter(np.mean(cadence[el]),np.mean(timerange[el]),s=seen[el]/2,alpha=0.7,c=color4[colorlabel[i]])
+    ax1.errorbar(np.mean(cadence[el]),np.mean(timerange[el]),label=el,yerr=np.std(timerange[el]),xerr=np.std(cadence[el]),alpha=0.2,c=color4[colorlabel[i]])
     #print(el,np.mean(cadence[el]))
 
     i+=1
     
-ax0.annotate('ZTF', # text to display
-             (120, 1300),        # text location
+ax1.annotate('ZTF', # text to display
+             (110, 1300),        # text location
              size=12, rotation=40 )
-ax0.annotate('WISE', # text to display
+ax1.annotate('WISE', # text to display
              (20, 3800),        # text location
              size=12, rotation=40 )
-ax0.annotate('GAIA', # text to display
-             (15, 700),        # text location
+ax1.annotate('GAIA', # text to display
+             (25, 600),        # text location
              size=12, rotation=40 )
-ax0.annotate('Pan-STARRS', # text to display
+ax1.annotate('Pan-STARRS', # text to display
              (22, 1600),        # text location
              size=12, rotation=40 )
-ax0.annotate('IceCube', # text to display
+ax1.annotate('IceCube', # text to display
              (1, 1500),        # text location
              size=12, rotation=40 )
-ax0.annotate('F814W', # text to display
-             (6, 3000),        # text location
+ax1.annotate('F814W', # text to display
+             (6, 2500),        # text location
              size=12, rotation=40 )
-ax0.annotate('Fermi', # text to display
+ax1.annotate('Fermi', # text to display
              (1, 30),        # text location
              size=12, rotation=40 )
 
-ax0.set_xlabel(r'$\rm Average\ number\ of\ visits$',size=15)
-ax0.set_ylabel(r'$\rm Average\ baseline\ (days)$',size=15)
-ax0.set_xscale('log')
+ax1.set_xlabel(r'$\rm Average\ number\ of\ visits$',size=15)
+ax1.set_ylabel(r'$\rm Average\ baseline\ (days)$',size=15)
+ax1.set_xscale('log')
 
 #####################################################################################################
-seen = Counter()
-for b in objid:
-    singleobj = df_lc.loc[b,:,:,:]
-    label = singleobj.index.unique('label')
-    bands = singleobj.loc[label[0],:,:].index.get_level_values('band')[:].unique()
-    seen.update(bands)
+u = (samp['Fermi_Blazars']!=1)
+ax3.hist(redshifts[u],label='initial')
+#ax3.hist(redshift_shuffled,label='final')
+samp = pd.read_csv('data/AGNsample_11Feb24.csv')
+
+for col in range(2,10):
+    u = (samp.iloc[:, col]==1)
+    ax3.hist(redshifts[u],histtype='step',label=samp.columns[col])
     
-key_order = ('IceCube','zg', 'zr', 'zi',  'G', 'BP', 'RP', 'panstarrs g',
-             'panstarrs r', 'panstarrs i', 'panstarrs z', 'panstarrs y', 'F814W','W1','W2','FERMIGTRIG','SAXGRBMGRB')
-
-#changing order of labels in dictionary only for text to be readable on the plot
-new_queue = OrderedDict()
-for k in key_order:
-    new_queue[k] = seen[k]
-
-
-tiklabels = ['IceCube','ZTF g','ZTF r','ZTF i','GAIA G', 'GAIA BP', 'GAIA RP',
-             'Pan-STARRS g','Pan-STARRS r','Pan-STARRS i','Pan-STARRS z','Pan-STARRS y','F814W','WISE 1','WISE 2','Fermi','GRB']
-
-h = ax1.bar(range(len(tiklabels)), new_queue.values(),color= "#3F51B5")
-ax1.set_xticks(range(len(tiklabels)),tiklabels,fontsize=15,rotation=90)
-ax1.set_ylabel(r'$\rm number\ of\ lightcurves$',size=15)
+ax3.set_xlabel(r'$\rm Redshifts$',size=15)
+ax3.set_ylabel(r'$\rm counts$',size=15)
+plt.legend()
 plt.tight_layout()
-
 plt.savefig('output/sample.png')
 ```
 
