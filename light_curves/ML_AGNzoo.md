@@ -125,10 +125,10 @@ custom_cmap = LinearSegmentedColormap.from_list("custom_theme", colors2[1:])
 Here we load a parquet file of light curves generated using the multiband_lc notebook. One can build the sample from different sources in the literature and grab the data from archives of interes.
 
 ```{code-cell} ipython3
-samp = pd.read_csv('data/AGNsample_11Feb24.csv')
+samp = pd.read_csv('data/AGNsample_26Feb24.csv')
 redshifts = samp['redshift']
 
-df_lc = pd.read_parquet('data/df_lc_021224.parquet')
+df_lc = pd.read_parquet('data/df_lc_022624.parquet')
 
 #df2 = df[df.index.get_level_values('label') !='64'] # remove 64 for SPIDER only as its too large
 #df_lc = update_bitsums(df2,label_num=64) # remove all bitwise sums that had 64 in them
@@ -148,13 +148,13 @@ df_lc
 ```{code-cell} ipython3
 from plot_functions import create_figures
 _ = create_figures(df_lc = df_lc, # either df_lc (serial call) or parallel_df_lc (parallel call)
-                   show_nbr_figures = 1,  # how many plots do you actually want to see?
+                   show_nbr_figures = 2,  # how many plots do you actually want to see?
                    save_output = True ,  # should the resulting plots be saved?
                   )
 ```
 
 ```{code-cell} ipython3
-bands_inlc = ['zg','zr','zi','W1','W2']
+bands_inlc = ['zi']#,'W1','W2']
 
 objects,dobjects,flabels,keeps,zlist = unify_lc(df_lc, redshifts,bands_inlc,xres=160,numplots=3,low_limit_size=5) #nearest neightbor linear interpolation
 #objects,dobjects,flabels,keeps,zlist = unify_lc_gp(df_lc,redshifts,bands_inlc,xres=160,numplots=5,low_limit_size=5) #Gaussian process unification
@@ -166,7 +166,7 @@ fvar, maxarray, meanarray = stat_bands(objects,dobjects,bands_inlc,sigmacl=5)
 dat_notnormal = combine_bands(objects,bands_inlc)
 
 # Normalize the combinde array by mean brightness in a waveband after clipping outliers:
-datm = normalize_clipmax_objects(dat_notnormal,meanarray,band = 1)
+datm = normalize_clipmax_objects(dat_notnormal,meanarray,band = 0)
 
 # shuffle data incase the ML routines are sensitive to order
 data,fzr,p = shuffle_datalabel(datm,flabels)
@@ -237,18 +237,15 @@ for (_, band), times in df_lc.reset_index().groupby(["objectid", "band"]).time:
 
 
 i=0
-colorlabel =[0,1,2,0,3,0,6,5,5,8,8,8,8,8,9,9,9]
-
+colorlabel =[0,0,0,1,1,2,2,2,2,2,3,3,3]
 
 for el in cadence.keys():
-    #print(el,len(cadence[el]),np.mean(cadence[el]),np.std(cadence[el]))
+    print(el,len(cadence[el]),np.mean(cadence[el]),np.std(cadence[el]))
     #print(el,len(timerange[el]),np.mean(timerange[el]),np.std(timerange[el]))
-    ax1.scatter(np.mean(cadence[el]),np.mean(timerange[el]),s=seen[el]/2,alpha=0.7,c=color4[colorlabel[i]])
+    ax1.scatter(np.mean(cadence[el]),np.mean(timerange[el]),s=seen[el],alpha=0.7,c=color4[colorlabel[i]],label=el)
     ax1.errorbar(np.mean(cadence[el]),np.mean(timerange[el]),label=el,yerr=np.std(timerange[el]),xerr=np.std(cadence[el]),alpha=0.2,c=color4[colorlabel[i]])
-    #print(el,np.mean(cadence[el]))
 
     i+=1
-    
 ax1.annotate('ZTF', # text to display
              (110, 1300),        # text location
              size=12, rotation=40 )
@@ -261,27 +258,16 @@ ax1.annotate('GAIA', # text to display
 ax1.annotate('Pan-STARRS', # text to display
              (22, 1600),        # text location
              size=12, rotation=40 )
-ax1.annotate('IceCube', # text to display
-             (1, 1500),        # text location
-             size=12, rotation=40 )
-ax1.annotate('F814W', # text to display
-             (6, 2500),        # text location
-             size=12, rotation=40 )
-ax1.annotate('Fermi', # text to display
-             (1, 30),        # text location
-             size=12, rotation=40 )
 
 ax1.set_xlabel(r'$\rm Average\ number\ of\ visits$',size=15)
 ax1.set_ylabel(r'$\rm Average\ baseline\ (days)$',size=15)
 ax1.set_xscale('log')
 
 #####################################################################################################
-u = (samp['Fermi_Blazars']!=1)
-ax3.hist(redshifts[u],label='initial')
 #ax3.hist(redshift_shuffled,label='final')
-samp = pd.read_csv('data/AGNsample_11Feb24.csv')
+samp = pd.read_csv('data/AGNsample_26Feb24.csv')
 
-for col in range(2,10):
+for col in range(2,13):
     u = (samp.iloc[:, col]==1)
     ax3.hist(redshifts[u],histtype='step',label=samp.columns[col])
     
@@ -374,11 +360,11 @@ for i in a:
     y[k]=i[1]
     k+=1
 med_r=np.zeros([msz0,msz1])
-fvar_new = stretch_small_values_arctan(np.nansum(fvar_arr,axis=0),factor=1)
+fvar_new = stretch_small_values_arctan(np.nansum(redshift_shuffled,axis=0),factor=1)
 for i in range(msz0):
     for j in range(msz1):
         unja=(x==i)&(y==j)
-        med_r[i,j]=(np.nanmedian(fvar_new[unja]))
+        med_r[i,j]=(np.nanmedian(redshift_shuffled[unja]))
 
 
 plt.figure(figsize=(18,12))
@@ -799,19 +785,5 @@ plt.savefig('output/sample.png')
 ```
 
 ```{code-cell} ipython3
-import pandas as pd
-import matplotlib.pyplot as plt
 
-# Load the CSV file into a DataFrame
-df = pd.read_csv('data/AGNsample_11Feb24.csv')  # Replace 'your_file.csv' with the path to your CSV file
-plt.figure(figsize=(10, 6))
-for i in range(2, 15):  # Assuming label columns are named as 'label1', 'label2', ..., 'label10'
-    label_column = df.columns[i]  # Construct the label column name
-    subset_df = df[df[label_column] == 1]  # Filter rows where the current label is 1
-    
-    # Plot the histogram for the filtered subset
-    plt.hist(subset_df['redshift'], bins=10, alpha=0.9, density=True, label=label_column,histtype='step')
-plt.xlabel('Redshift')
-plt.ylabel('Frequency')
-plt.legend()
 ```

@@ -104,7 +104,7 @@ def unify_lc(df_lc, redshifts, bands_inlc=['zr', 'zi', 'zg'], xres=320, numplots
     # Initialize variables for storing results
     printcounter = 0
     objects, dobjects, flabels, keeps, zlist = [], [], [], [], []
-    colors = ["#3F51B5","#40826D","#E30022","k","orange"]
+    colors = ['#3182bd','#6baed6','#9ecae1','#e6550d','#fd8d3c','#fdd0a2','#31a354','#a1d99b', '#c7e9c0', '#756bb1', '#bcbddc', '#dadaeb', '#969696', '#bdbdbd','#d9d9d9']
 
     # Iterate over each object ID
     for keepindex, obj in tqdm(enumerate(objids)):
@@ -205,7 +205,7 @@ def unify_lc_gp(df_lc,redshifts,bands_inlc=['zr','zi','zg'],xres=320,numplots=1,
     
     printcounter = 0
     objects,dobjects,flabels,keeps,zlist = [],[],[],[],[]
-    colors = ["#3F51B5","#40826D","#E30022","k","orange"]
+    colors = ['#3182bd','#6baed6','#9ecae1','#e6550d','#fd8d3c','#fdd0a2','#31a354','#a1d99b', '#c7e9c0', '#756bb1', '#bcbddc', '#dadaeb', '#969696', '#bdbdbd','#d9d9d9']
 
     for keepindex,obj in tqdm(enumerate(objids)):
         redshift = redshifts[obj]
