@@ -154,7 +154,7 @@ _ = create_figures(df_lc = df_lc, # either df_lc (serial call) or parallel_df_lc
 ```
 
 ```{code-cell} ipython3
-bands_inlc = ['zi']#,'W1','W2']
+bands_inlc = ['W1']#,'W1','W2']
 
 objects,dobjects,flabels,keeps,zlist = unify_lc(df_lc, redshifts,bands_inlc,xres=160,numplots=3,low_limit_size=5) #nearest neightbor linear interpolation
 #objects,dobjects,flabels,keeps,zlist = unify_lc_gp(df_lc,redshifts,bands_inlc,xres=160,numplots=5,low_limit_size=5) #Gaussian process unification

@@ -95,26 +95,6 @@ def update_or_append_multiple(ras, decs, redshifts, labels):
 
 ```
 
-```python
-# https://ui.adsabs.harvard.edu/abs/2003MNRAS.346.1055K/abstract
-# https://wwwmpa.mpa-garching.mpg.de/SDSS/DR4/Data/agn.cat_dr2_desc.txt
-# idpl,mjd,ifib, ra, dec, zz, o3lum,o3corr, bpt1,bpt2, rml50, rmu, con, d4n,hda, vdisp  
-
-r = 0
-with open("data/agn.dat_dr4_release.v2", 'r') as file:
-    for line in file:
-        parts = line.split()  # Splits the line into parts
-        redshift = float(parts[5])
-        transition = parts[2]
-        ra = parts[3]
-        dec = parts[4]
-        coord = SkyCoord(ra + ' ' + dec, unit=(u.deg, u.deg))
-        update_or_append_multiple([coord.ra.deg],[coord.dec.deg],[redshift],['Kauffmann'])
-        
-        r+=1
-print('Kauffmann sources:',str(r))
-```
-
 ## Add SDSS QSO from DR16
 
 ```python
@@ -470,7 +450,7 @@ print('Fermi Blazar added sources:',str(r))
 
 ```python
 # Assuming `df` is your pandas DataFrame
-df.to_csv('data/Kauffmansample_27Feb24.csv', index=False)
+df.to_csv('data/AGNsample_26Feb24.csv', index=False)
 
 ```
 
@@ -534,10 +514,6 @@ t.write('data/agnsample_feb26.ecsv', format='ascii.ecsv', overwrite=True)
 ```
 
 ```python
-
-```
-
-```python
 def translate_bitwise_sum_to_labels(bitwise_sum):
     """
     Translate a bitwise sum back to the labels which were set to 1.
@@ -572,4 +548,28 @@ print("Active Labels:", active_labels)
 
 ```python
 
+```
+
+```python
+# https://ui.adsabs.harvard.edu/abs/2003MNRAS.346.1055K/abstract
+# https://wwwmpa.mpa-garching.mpg.de/SDSS/DR4/Data/agn.cat_dr2_desc.txt
+# idpl,mjd,ifib, ra, dec, zz, o3lum,o3corr, bpt1,bpt2, rml50, rmu, con, d4n,hda, vdisp  
+
+#r = 0
+#new_rows = []  # Prepare a list to collect new rows
+#with open("data/agn.dat_dr4_release.v2", 'r') as file:
+#    for line in file:
+#        parts = line.split()  # Splits the line into parts
+#        redshift = float(parts[5])
+#        transition = parts[2]
+#        ra = parts[3]
+#        dec = parts[4]
+#        coord = SkyCoord(ra + ' ' + dec, unit=(u.deg, u.deg))
+#        new_row = pd.DataFrame([{**{'SkyCoord': coord, 'redshift': redshift}, **{l: 1 if l == label else 0 for l in agnlabels}}])
+#        new_rows.append(new_row)        
+#        r+=1
+
+#df = pd.concat([df, *new_rows], ignore_index=True)
+
+#print('Kauffmann sources:',str(r))
 ```
