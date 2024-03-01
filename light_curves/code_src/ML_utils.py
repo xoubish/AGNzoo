@@ -7,6 +7,11 @@ import pandas as pd
 
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
+from sklearn.gaussian_process.kernels import Matern
+from sklearn.gaussian_process.kernels import RationalQuadratic
+
+from concurrent.futures import ThreadPoolExecutor
+
 
 from tqdm import tqdm
 
@@ -24,8 +29,8 @@ def translate_bitwise_sum_to_labels(bitwise_sum):
     # Initialize agnlabels
     agnlabels = ['SDSS_QSO', 'WISE_Variable','Optical_Variable','Galex_Variable',
                  'Turn-on', 'Turn-off',
-                 'SPIDER', 'SPIDER_AGN','SPIDER_BL','SPIDER_QSOBL','SPIDER_AGNBL', 
-                 'TDE','Fermi_blazar']
+                 'SPIDER','SPIDER_AGN','SPIDER_BL','SPIDER_QSOBL','SPIDER_AGNBL', 
+                 'TDE']
     active_labels = []
     for i, label in enumerate(agnlabels):
         # Check if the ith bit is set to 1
@@ -71,12 +76,14 @@ def autopct_format(values):
     def my_format(pct):
         total = sum(values)
         val = int(round(pct*total/100.0))
-        return '{:.1f}%\n({v:d})'.format(pct, v=val)
+        #return '{:.1f}%\n({v:d})'.format(pct, v=val)
+        return val#'{:.1f}%'.format(pct)
+    
 
     return my_format
 
 
-def unify_lc(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=160, numplots=1, low_limit_size=5):
+def unify_lc(df_lc, redshifts, bands_inlc=['zr', 'zi', 'zg'], xres=320, numplots=1, low_limit_size=5):
     '''
     Function to preprocess and unify time dimension of light curve data with linear interpolation.
 
@@ -97,31 +104,30 @@ def unify_lc(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=160, numplots=1, low_lim
 
     # Initialize variables for storing results
     printcounter = 0
-    objects, dobjects, flabels, keeps = [], [], [], []
+    objects, dobjects, flabels, keeps, zlist = [], [], [], [], []
+    colors = ['#3182bd','#6baed6','#9ecae1','#e6550d','#fd8d3c','#fdd0a2','#31a354','#a1d99b', '#c7e9c0', '#756bb1', '#bcbddc', '#dadaeb', '#969696', '#bdbdbd','#d9d9d9']
 
     # Iterate over each object ID
     for keepindex, obj in tqdm(enumerate(objids)):
+        redshift = redshifts[obj]
         singleobj = df_lc.loc[obj, :, :, :]  # Extract data for the single object
         label = singleobj.index.unique('label')  # Get the label of the object
         bands = singleobj.loc[label[0], :, :].index.get_level_values('band')[:].unique()  # Extract bands
 
         keepobj = 0  # Flag to determine if the object should be kept
-
         # Check if the object has all required bands
         if len(np.intersect1d(bands, bands_inlc)) == len(bands_inlc):
             if printcounter < numplots:
-                fig, ax = plt.subplots(figsize=(15, 5))  # Set up plot if within numplots limit
+                fig, ax = plt.subplots(figsize=(15, 4))  # Set up plot if within numplots limit
 
             # Initialize arrays for new interpolated Y and dY values
             obj_newy = [[] for _ in range(len(bands_inlc))]
             obj_newdy = [[] for _ in range(len(bands_inlc))]
 
             keepobj = 1  # Set keepobj to 1 (true) initially
-
             # Process each band in the included bands
             for l, band in enumerate(bands_inlc):
                 band_lc = singleobj.loc[label[0], band, :]  # Extract light curve data for the band
-                # Clean data to remove times greater than a threshold (65000)
                 band_lc_clean = band_lc[band_lc.index.get_level_values('time') < 65000]
                 x, y, dy = np.array(band_lc_clean.index.get_level_values('time') - band_lc_clean.index.get_level_values('time')[0]), np.array(band_lc_clean.flux), np.array(band_lc_clean.err)
 
@@ -129,7 +135,7 @@ def unify_lc(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=160, numplots=1, low_lim
                 x2, y2, dy2 = x[np.argsort(x)], y[np.argsort(x)], dy[np.argsort(x)]
 
                 # Check if there are enough points for interpolation
-                if len(x2) > 5:
+                if (len(x2) > low_limit_size) and not np.isnan(y2).any():
                     # Handle time overlaps in light curves
                     n = np.sum(x2 == 0)
                     for b in range(1, n):
@@ -141,11 +147,14 @@ def unify_lc(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=160, numplots=1, low_lim
 
                     # Plot data if within the numplots limit
                     if printcounter < numplots:
-                        plt.errorbar(x2, y2, dy2, capsize=1.0, marker='.', linestyle='', label=label[0] + band)
                         if band in ['W1', 'W2']:
-                            plt.plot(x_wise, f(x_wise), '--', label='nearest interpolation ' + str(band))
+                            gline, = plt.plot(x_wise, f(x_wise), '--', label='nearest interpolation ' + str(band),color = colors[l])
+                            gcolor=gline.get_color()
                         else:
-                            plt.plot(x_ztf, f(x_ztf), '--', label='nearest interpolation ' + str(band))
+                            gline, = plt.plot(x_ztf, f(x_ztf), '--', label='nearest interpolation ' + str(band),color = colors[l])
+                            gcolor=gline.get_color()
+
+                        plt.errorbar(x2, y2, dy2, capsize=1.0, marker='.', linestyle='',alpha=0.4,color=gcolor)
 
                     # Assign interpolated values based on the band
                     if band =='W1' or band=='W2':
@@ -155,27 +164,28 @@ def unify_lc(df_lc, bands_inlc=['zr', 'zi', 'zg'], xres=160, numplots=1, low_lim
                         obj_newy[l] = f(x_ztf)#/f(x_ztf).max()
                         obj_newdy[l] = df(x_ztf)#/f(x_ztf).max()
 
-                if len(obj_newy[l])<low_limit_size: #don't keep objects which have less than x datapoints in any keeping bands
+                else: #don't keep objects which have less than x datapoints in any keeping bands
                     keepobj = 0
 
             if printcounter<numplots:
-                plt.title('Object '+str(obj))#+' from '+label[0]+' et al.')
-                plt.xlabel('Time(MJD)')
-                plt.ylabel('Flux(mJy)')
+                plt.xlabel(r'$\rm Time(MJD)$',size=15)
+                plt.ylabel(r'$\rm Flux(mJy)$',size=15)
                 plt.legend()
-                plt.show()
+                #plt.show()
+                plt.savefig('output/interp_ln_lc'+str(printcounter)+'.png')
                 printcounter+=1
 
 
-        if keepobj:
+        if keepobj and not np.isnan(obj_newy).any():
             objects.append(obj_newy)
             dobjects.append(obj_newdy)
             flabels.append(label[0])
             keeps.append(keepindex)
-    return np.array(objects),np.array(dobjects),flabels,keeps
+            zlist.append(redshift)
+    return np.array(objects),np.array(dobjects),flabels,keeps,np.array(zlist)
 
 
-def unify_lc_gp(df_lc,bands_inlc=['zr','zi','zg'],xres=160,numplots=1,low_limit_size=5):
+def unify_lc_gp(df_lc,redshifts,bands_inlc=['zr','zi','zg'],xres=320,numplots=1,low_limit_size=5):
     '''
     Function to preprocess and unify the time dimension of light curve data using Gaussian Processes.
 
@@ -190,17 +200,25 @@ def unify_lc_gp(df_lc,bands_inlc=['zr','zi','zg'],xres=160,numplots=1,low_limit_
     x_wise = np.linspace(0,4000,xres).reshape(-1, 1) # X array for interpolation
     objids = df_lc.index.get_level_values('objectid')[:].unique()
 
+    #kernel = 1 * RBF(length_scale=200)
+    #kernel = 1.0 * Matern(length_scale=20.0, nu=10)
+    kernel = RationalQuadratic(length_scale=1, alpha=0.1)
+    
     printcounter = 0
-    objects,dobjects,flabels,keeps = [],[],[],[]
+    objects,dobjects,flabels,keeps,zlist = [],[],[],[],[]
+    colors = ['#3182bd','#6baed6','#9ecae1','#e6550d','#fd8d3c','#fdd0a2','#31a354','#a1d99b', '#c7e9c0', '#756bb1', '#bcbddc', '#dadaeb', '#969696', '#bdbdbd','#d9d9d9']
+
     for keepindex,obj in tqdm(enumerate(objids)):
+        redshift = redshifts[obj]
 
         singleobj = df_lc.loc[obj,:,:,:]
         label = singleobj.index.unique('label')
         bands = singleobj.loc[label[0],:,:].index.get_level_values('band')[:].unique()
         keepobj = 0
+        
         if len(np.intersect1d(bands,bands_inlc))==len(bands_inlc):
             if printcounter<numplots:
-                fig= plt.subplots(figsize=(15,5))
+                fig= plt.subplots(figsize=(15,4))
 
             obj_newy = [ [] for _ in range(len(bands_inlc))]
             obj_newdy = [ [] for _ in range(len(bands_inlc))]
@@ -212,49 +230,111 @@ def unify_lc_gp(df_lc,bands_inlc=['zr','zi','zg'],xres=160,numplots=1,low_limit_
                 x,y,dy = np.array(band_lc_clean.index.get_level_values('time')-band_lc_clean.index.get_level_values('time')[0]),np.array(band_lc_clean.flux),np.array(band_lc_clean.err)
 
                 x2,y2,dy2 = x[np.argsort(x)],y[np.argsort(x)],dy[np.argsort(x)]
-                if len(x2)>low_limit_size:
-
+                if len(x2)>low_limit_size and (not np.isnan(y2).any()) and (not np.isnan(dy2).any()):
                     n = np.sum(x2==0)
                     for b in range(1,n): # this is a hack of shifting time of different lightcurves by a bit so I can interpolate!
                         x2[::b+1]=x2[::b+1]+1*0.001
                     X = x2.reshape(-1, 1)
+                    gp = GaussianProcessRegressor(kernel=kernel, alpha=dy2**2)
+                    gp.fit(X, y2)
+                    
                     if band =='W1' or band=='W2':
-                        kernel = 1.0 * RBF(length_scale=200)
-                        gpw = GaussianProcessRegressor(kernel=kernel, alpha=(dy2)**2)
-                        gpw.fit(X, y2)
-                        obj_newy[l],obj_newdy[l] = gpw.predict(x_wise, return_std=True)
+                        obj_newy[l],obj_newdy[l] = gp.predict(x_wise, return_std=True)
                     else:
-                        kernel = 1.0 * RBF(length_scale=len(x_ztf)/len(x2))
-                        gp = GaussianProcessRegressor(kernel=kernel, alpha=dy2**2)
-                        gp.fit(X, y2)
                         obj_newy[l],obj_newdy[l] = gp.predict(x_ztf, return_std=True)
 
                     if printcounter<numplots:
-                        plt.errorbar(x2,y2,dy2 , capsize = 1.0,marker='.',linestyle='', label = label[0]+band)
                         if band=='W1' or band=='W2':
-                            y_pred,sigma = gpw.predict(x_wise, return_std=True)
-                            plt.plot(x_wise,y_pred,'--',label='Gaussian Process Reg.'+str(band))
-                            plt.fill_between(x_wise.flatten(), y_pred - 1.96 * sigma,y_pred + 1.96 * sigma, alpha=0.2, color='r')
+                            y_pred,sigma = gp.predict(x_wise, return_std=True)
+                            gpline, = plt.plot(x_wise,y_pred,'--',label='Gaussian Process Reg.'+str(band),color = colors[l])
+                            gcolor= gpline.get_color()
+                            plt.fill_between(x_wise.flatten(), y_pred - 1.96 * sigma,y_pred + 1.96 * sigma, alpha=0.2, color=gcolor)
                         else:
-                            kernel = 1.0 * RBF(length_scale=len(x_ztf)/len(x2))
                             y_pred,sigma = gp.predict(x_ztf, return_std=True)
-                            plt.plot(x_ztf,y_pred,'--',label='Gaussian Process Reg.'+str(band))
-                            plt.fill_between(x_ztf.flatten(), y_pred - 1.96 * sigma,y_pred + 1.96 * sigma, alpha=0.2, color='r')
+                            gpline, = plt.plot(x_ztf,y_pred,'--',label='Gaussian Process Reg.'+str(band),color = colors[l])
+                            gcolor= gpline.get_color()
+                            plt.fill_between(x_ztf.flatten(), y_pred - 1.96 * sigma,y_pred + 1.96 * sigma, alpha=0.2, color=gcolor)
+                        plt.errorbar(x2,y2,dy2 , capsize = 1.0,marker='.',linestyle='',alpha=0.4,color=gcolor)
+
                 else:
                     keepobj=0
+                    break
             if (printcounter<numplots):
-                plt.title('Object '+str(obj))#+' from '+label[0]+' et al.')
-                plt.xlabel('Time(MJD)')
-                plt.ylabel('Flux(mJy)')
+                #plt.title('Object '+str(obj))#+' from '+label[0]+' et al.')
+                plt.xlabel(r'$\rm Time(MJD)$',size=15)
+                plt.ylabel(r'$\rm Flux(mJy)$',size=15)
                 plt.legend()
-                plt.show()
+                #plt.show()
+                plt.savefig('output/interp_gp_lc'+str(printcounter)+'.png')
                 printcounter+=1
-        if keepobj:
+        if keepobj and not np.isnan(obj_newy).any():
             objects.append(obj_newy)
             dobjects.append(obj_newdy)
             flabels.append(label[0])
             keeps.append(keepindex)
-    return np.array(objects),np.array(dobjects),flabels,keeps
+            zlist.append(redshift)
+
+        #if keepindex>10:
+    return np.array(objects),np.array(dobjects),flabels,keeps,np.array(zlist)
+         
+def process_single_object(obj, singleobj, redshift,redindex, bands_inlc, xres, low_limit_size, kernel):
+    label = singleobj.index.unique('label')
+    bands = singleobj.loc[label[0],:,:].index.get_level_values('band')[:].unique()
+    keepobj = 0
+    obj_newy, obj_newdy = [], []
+
+    if len(np.intersect1d(bands, bands_inlc)) == len(bands_inlc):
+        keepobj = 1
+        for l, band in enumerate(bands_inlc):
+            band_lc = singleobj.loc[label[0], band, :]
+            band_lc_clean = band_lc  # Assuming preprocessing has been done beforehand
+            x, y, dy = np.array(band_lc_clean.index.get_level_values('time') - band_lc_clean.index.get_level_values('time')[0]), np.array(band_lc_clean.flux), np.array(band_lc_clean.err)
+
+            x2, y2, dy2 = x[np.argsort(x)], y[np.argsort(x)], dy[np.argsort(x)]
+            if len(x2) > low_limit_size and (not np.isnan(y2).any()) and (not np.isnan(dy2).any()):
+                X = x2.reshape(-1, 1)
+                gp = GaussianProcessRegressor(kernel=kernel, alpha=dy2**2)
+                gp.fit(X, y2)
+                
+                x_pred = np.linspace(0, 1600, xres).reshape(-1, 1) if band not in ['W1', 'W2'] else np.linspace(0, 4000, xres).reshape(-1, 1)
+                y_pred, sigma_pred = gp.predict(x_pred, return_std=True)
+                obj_newy.append(y_pred)
+                obj_newdy.append(sigma_pred)
+            else:
+                keepobj = 0
+
+        if keepobj and not np.isnan(obj_newy).any():
+            return (obj_newy, obj_newdy, label[0], redshift,redindex)
+    return None
+
+def unify_lc_gp_parallel(df_lc, redshifts, bands_inlc=['zr', 'zi', 'zg'], xres=320, low_limit_size=5):
+    kernel = RationalQuadratic(length_scale=1, alpha=0.1)
+    objids = df_lc.index.get_level_values('objectid')[:].unique()
+    objid_to_index = {objid: index for index, objid in enumerate(df_lc.index.get_level_values('objectid').unique())}
+
+    preprocessed_data = [
+        (obj, df_lc.loc[obj,:,:,:], redshifts[objid_to_index[obj]], objid_to_index[obj], bands_inlc, xres, low_limit_size, kernel) for obj in objids]
+    # Correcting the preparation of preprocessed_data to include all necessary parameters
+ #   preprocessed_data = [(obj, df_lc.loc[obj,:,:,:], redshifts[obj], bands_inlc, xres, low_limit_size, kernel) for obj in objids]
+
+    results = []
+    with ThreadPoolExecutor(max_workers=10) as executor:  # Adjust max_workers based on your system
+        futures = [executor.submit(process_single_object, *args) for args in preprocessed_data]
+        for future in tqdm(futures, desc="Processing objects"):
+            result = future.result()
+            if result is not None:
+                results.append(result)
+
+    objects, dobjects, flabels, zlist,keeps = [], [], [], [],[]
+    for result in results:
+        obj_newy, obj_newdy, label, redshift,redindex = result
+        objects.append(obj_newy)
+        dobjects.append(obj_newdy)
+        flabels.append(label)
+        zlist.append(redshift)
+        keeps.append(redindex)
+    
+    return np.array(objects), np.array(dobjects), flabels, np.array(zlist),keeps
 
 def combine_bands(objects,bands):
     '''
@@ -279,19 +359,33 @@ def mean_fractional_variation(lc,dlc):
     fvar = (np.sqrt(varf-deltaf))/meanf
     return fvar
 
-def stat_bands(objects,dobjects,bands,sigmacl=5):
+def stat_bands(objects, dobjects, bands, sigmacl=5):
     '''
-    returns arrays with maximum,mean,std flux in the 5sigma clipped lightcurves of each band .
+    Returns arrays with maximum, mean, std flux in the 5sigma clipped lightcurves of each band.
     '''
-    fvar,maxarray,meanarray = np.zeros((len(bands),len(objects))),np.zeros((len(bands),len(objects))),np.zeros((len(bands),len(objects)))
-    for o,ob in enumerate(objects):
-        for b in range(len(bands)):
-            clipped_arr,l,u = stats.sigmaclip(ob[b], low=sigmacl, high=sigmacl)
-            clipped_varr,l,u = stats.sigmaclip(dobjects[o,b,:], low=sigmacl, high=sigmacl)
-            maxarray[b,o] = clipped_arr.max()
-            meanarray[b,o] = clipped_arr.mean()
-            fvar[b,o] = mean_fractional_variation(clipped_arr,clipped_varr)
-    return fvar,maxarray,meanarray
+    num_bands = len(bands)
+    num_objects = len(objects)
+    fvar = np.zeros((num_bands, num_objects))
+    maxarray = np.zeros((num_bands, num_objects))
+    meanarray = np.zeros((num_bands, num_objects))
+
+    for o, ob in enumerate(objects):
+        for b in range(num_bands):
+            clipped_arr, _, _ = stats.sigmaclip(ob[b], low=sigmacl, high=sigmacl)
+            clipped_varr, _, _ = stats.sigmaclip(dobjects[o, b, :], low=sigmacl, high=sigmacl)
+
+            # Check if clipped_arr is not empty
+            if clipped_arr.size > 0:
+                maxarray[b, o] = clipped_arr.max() if clipped_arr.size > 0 else 0
+                meanarray[b, o] = clipped_arr.mean() if clipped_arr.size > 0 else 0
+                fvar[b, o] = mean_fractional_variation(clipped_arr, clipped_varr) if clipped_arr.size > 0 else 0
+            else:
+                # Handle empty arrays by setting values to NaN or another appropriate value
+                maxarray[b, o] = 0
+                meanarray[b, o] = 0
+                fvar[b, o] = 0
+
+    return fvar, maxarray, meanarray
 
 
 def normalize_mean_objects(data):

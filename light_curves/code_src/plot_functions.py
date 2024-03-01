@@ -59,7 +59,7 @@ def create_figures(df_lc, show_nbr_figures, save_output):
         return(False)
     
     # Iterate over objects and create figures
-    for cc, (objectid, singleobj_df) in enumerate(df_lc.data.groupby('objectid')):
+    for cc, (objectid, singleobj_df) in enumerate(df_lc.groupby('objectid')):
         # Set up for plotting. We use the "mosaic" method so we can plot
         # the ZTF data in a subplot for better visibility.
         fig, axes = plt.subplot_mosaic(mosaic=[["A"],["A"],["B"]] , figsize=(10,8))
@@ -80,19 +80,20 @@ def create_figures(df_lc, show_nbr_figures, save_output):
         ztf_df = band_groups.filter(lambda band_df: band_df.name in ZTF_BANDS)
         _format_axes(axes, ztf_time_min_max=(ztf_df.time.min(), ztf_df.time.max()))
         plt.subplots_adjust(hspace=0.3 , wspace=0.3)
-        axes["A"].legend(bbox_to_anchor=(1.2,0.95), title=f"objectid: {objectid}")
+        axes["A"].legend()
 
         # Save, show, and/or close the figure.
         if save_output:
-            savename = os.path.join("output" , "lightcurve_{}.pdf".format(objectid) ) 
+            savename = os.path.join("output" , "lightcurve_{}.png".format(objectid) ) 
             plt.savefig(savename, bbox_inches="tight")
         if cc < show_nbr_figures:
             plt.show()
         else:
             plt.close()
             # If figures are not saved, we only have to loop over the number of figures shown.
-            if not save_output:
-                break
+            break
+            #if not save_output:
+                #break
             
     print("Done")
     return(True)

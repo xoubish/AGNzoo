@@ -13,7 +13,7 @@ jupyter:
 ---
 
 # Build AGN final catalog sample 
-By Shooby, Last edit Feb 6th
+By Shooby, Last edit Feb 26th
 
 ```python
 import sys
@@ -42,13 +42,14 @@ import logging
 logger = logging.getLogger()
 logger.setLevel(logging.ERROR)
 
+zmin = 0.0
 zmax = 1.0
 
 # Initialize agnlabels
 agnlabels = ['SDSS_QSO', 'WISE_Variable','Optical_Variable','Galex_Variable',
              'Turn-on', 'Turn-off',
              'SPIDER', 'SPIDER_AGN','SPIDER_BL','SPIDER_QSOBL','SPIDER_AGNBL', 
-             'TDE','Fermi_blazar']
+             'TDE']
 
 # Create an empty pandas DataFrame
 columns = ['SkyCoord', 'redshift'] + agnlabels
@@ -97,14 +98,40 @@ def update_or_append_multiple(ras, decs, redshifts, labels):
 ## Add SDSS QSO from DR16
 
 ```python
-num = 1000
-query = "SELECT TOP " + str(num) + " specObjID, ra, dec, z FROM SpecObj \
-WHERE ( z > 0.1 AND z < " + str(zmax) + " AND class='QSO' AND zWARNING=0 )"
-if num>0:
-    res = SDSS.query_sql(query, data_release = 16)
-    for r in res:
-        update_or_append_multiple([r['ra']], [r['dec']], [r['z']], ['SDSS_QSO'])
+# have to change order otherwise all low redshift
+#query = f"SELECT TOP {num} specObjID, ra, dec, z FROM SpecObj \
+#WHERE ( z > 0.001 AND z < {zmax} AND class='QSO' AND zWARNING=0 ) \
+#ORDER BY NEWID()"
+zmax = 1.0  # Example maximum redshift
+num = 1000  # Total number of samples desired
+num_bins = 20  # Number of bins
+num_per_bin = num // num_bins  # Samples per bin
+
+# Calculate bin edges
+bin_edges = np.linspace(0.0001, zmax, num_bins + 1)
+
+# Placeholder for results
+results = pd.DataFrame()
+
+for i in range(num_bins):
+    bin_start = bin_edges[i]
+    bin_end = bin_edges[i + 1]
+    
+    # Construct query for this bin
+    query = f"""
+    SELECT TOP {num_per_bin} specObjID, ra, dec, z
+    FROM SpecObj
+    WHERE (z > {bin_start} AND z < {bin_end} AND class='QSO' AND zWARNING=0)
+    ORDER BY NEWID()
+    """
+
+    if num>0:
+        res = SDSS.query_sql(query, data_release = 16)
+        for r in res:
+            update_or_append_multiple([r['ra']], [r['dec']], [r['z']], ['SDSS_QSO'])
 print('SDSS QSO sources added: ',len(df))
+hwy = plt.hist(df['redshift'], bins=30, alpha=0.75, color='blue')  # Adjust 'z' if your column name differs
+
 ```
 
 # SPIDERS 
@@ -135,9 +162,9 @@ uqso_agnbl = (a['DR16_CLASS']=='QSO') &(a['DR16_SUBCLASS']=='AGN BROADLINE')&(a[
 
 ```python
 #takes long
-uspider_labels = ['SPIDER' for ra in a['SDSS_RA'][uspider]]
-update_or_append_multiple(a['SDSS_RA'][uspider],a['SDSS_DEC'][uspider],a['Z_BEST'][uspider],uspider_labels)
-print('SPIDER QSO/AGNs added :',str(len(a['SDSS_RA'][uspider])))
+#uspider_labels = ['SPIDER' for ra in a['SDSS_RA'][uspider]]
+#update_or_append_multiple(a['SDSS_RA'][uspider],a['SDSS_DEC'][uspider],a['Z_BEST'][uspider],uspider_labels)
+#print('SPIDER QSO/AGNs added :',str(len(a['SDSS_RA'][uspider])))
 
 uspideragn_labels = ['SPIDER_AGN' for ra in a['SDSS_RA'][uspideragn]]
 update_or_append_multiple(a['SDSS_RA'][uspideragn],a['SDSS_DEC'][uspideragn],a['Z_BEST'][uspideragn],uspideragn_labels)
@@ -161,7 +188,7 @@ print('SPIDER spec QSO BL:',str(len(a['SDSS_RA'][uqso_agnbl])))
 
 ```python
 VAGN = pd.read_csv('data/WISE_MIR_variable_AGN_with_PS1_photometry_and_SDSS_redshift.csv')
-uwise = (VAGN['SDSS_redshift']>0)&(VAGN['SDSS_redshift']<zmax)
+uwise = (VAGN['SDSS_redshift']>0.001)&(VAGN['SDSS_redshift']<zmax)
 vagn_labels = ['WISE_Variable' for ra in VAGN['SDSS_RA'][uwise]]
 update_or_append_multiple(VAGN['SDSS_RA'][uwise],VAGN['SDSS_Dec'][uwise],VAGN['SDSS_redshift'][uwise],vagn_labels)
 print('WISE Variable sources: ',len(vagn_labels))
@@ -333,16 +360,6 @@ print('Hon 2022 added sources:',str(r))
 
 ```
 
-# Fermi (gamma ray) Blazars
-
-<!-- #raw -->
-paper = Ned.query_refcode('2015ApJ...810...14A') #FERMI BLAZERS
-up = (paper['Redshift']>0)&(paper['Redshift']<=zmax)
-paper_labels = ['Fermi_blazar' for ra in paper['RA'][up]]
-update_or_append_multiple(paper['RA'][up], paper['DEC'][up],paper['Redshift'][up],paper_labels)
-print(len(paper_labels))
-<!-- #endraw -->
-
 # TDEs
 
 ```python
@@ -405,6 +422,22 @@ update_or_append_multiple(ras, decs,redshifts,TDE_labels)
 print('TDEs added to df: ',len(TDE_labels))
 ```
 
+# Fermi (gamma ray) Blazars
+
+```python
+r = 0
+with open("data/fermi.cat", 'r') as file:
+    for line in file:
+        parts = line.split()  # Splits the line into parts
+        if (float(parts[12])>0.1) and (float(parts[12])<zmax):
+            ra = parts[4]
+            dec = parts[5]
+            coord = SkyCoord(ra + ' ' + dec, unit=(u.hourangle, u.deg))
+            update_or_append_multiple([coord.ra.deg],[coord.dec.deg],[float(parts[12])],['Fermi_Blazars'])    
+            r+=1
+print('Fermi Blazar added sources:',str(r))
+```
+
 # WISE R90
 
 ```python
@@ -417,7 +450,7 @@ print('TDEs added to df: ',len(TDE_labels))
 
 ```python
 # Assuming `df` is your pandas DataFrame
-df.to_csv('AGNsample_06Feb24.csv', index=False)
+df.to_csv('data/AGNsample_26Feb24.csv', index=False)
 
 ```
 
@@ -431,7 +464,7 @@ import astropy.units as u
 import numpy as np
 
 # Read the CSV file into a DataFrame
-df = pd.read_csv('data/AGNsample_06Feb24.csv')
+df = pd.read_csv('data/AGNsample_26Feb24.csv')
 
 # Define a function to parse the strings into SkyCoord objects
 def parse_skycoord_string(s):
@@ -461,7 +494,7 @@ df.drop('SkyCoord_obj', axis=1, inplace=True)
 agnlabels = ['SDSS_QSO', 'WISE_Variable','Optical_Variable','Galex_Variable',
              'Turn-on', 'Turn-off',
              'SPIDER', 'SPIDER_AGN','SPIDER_BL','SPIDER_QSOBL','SPIDER_AGNBL', 
-             'TDE','Fermi_blazar']
+             'TDE']
 # Calculate the sum of label columns for each row
 # Calculate the bitwise sum
 bitwise_sum = np.zeros(len(df), dtype=int)
@@ -476,11 +509,7 @@ df['objectid'] = df.index
 ```python
 selected_columns_df = df[['objectid', 'coord.ra', 'coord.dec', 'label']]
 t = Table.from_pandas(selected_columns_df)
-t.write('data/agnsample_feb7.ecsv', format='ascii.ecsv', overwrite=True)
-
-```
-
-```python
+t.write('data/agnsample_feb26.ecsv', format='ascii.ecsv', overwrite=True)
 
 ```
 
@@ -500,7 +529,7 @@ def translate_bitwise_sum_to_labels(bitwise_sum):
     agnlabels = ['SDSS_QSO', 'WISE_Variable','Optical_Variable','Galex_Variable',
                  'Turn-on', 'Turn-off',
                  'SPIDER', 'SPIDER_AGN','SPIDER_BL','SPIDER_QSOBL','SPIDER_AGNBL', 
-                 'TDE','Fermi_blazar']
+                 'TDE']
     active_labels = []
     for i, label in enumerate(agnlabels):
         # Check if the ith bit is set to 1
@@ -519,4 +548,28 @@ print("Active Labels:", active_labels)
 
 ```python
 
+```
+
+```python
+# https://ui.adsabs.harvard.edu/abs/2003MNRAS.346.1055K/abstract
+# https://wwwmpa.mpa-garching.mpg.de/SDSS/DR4/Data/agn.cat_dr2_desc.txt
+# idpl,mjd,ifib, ra, dec, zz, o3lum,o3corr, bpt1,bpt2, rml50, rmu, con, d4n,hda, vdisp  
+
+#r = 0
+#new_rows = []  # Prepare a list to collect new rows
+#with open("data/agn.dat_dr4_release.v2", 'r') as file:
+#    for line in file:
+#        parts = line.split()  # Splits the line into parts
+#        redshift = float(parts[5])
+#        transition = parts[2]
+#        ra = parts[3]
+#        dec = parts[4]
+#        coord = SkyCoord(ra + ' ' + dec, unit=(u.deg, u.deg))
+#        new_row = pd.DataFrame([{**{'SkyCoord': coord, 'redshift': redshift}, **{l: 1 if l == label else 0 for l in agnlabels}}])
+#        new_rows.append(new_row)        
+#        r+=1
+
+#df = pd.concat([df, *new_rows], ignore_index=True)
+
+#print('Kauffmann sources:',str(r))
 ```
