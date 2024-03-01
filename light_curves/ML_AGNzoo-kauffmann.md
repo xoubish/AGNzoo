@@ -78,44 +78,8 @@ warnings.filterwarnings('ignore')
 
 plt.style.use('bmh')
 
-colors = ["#3F51B5", "#003153", "#0047AB", "#40826D", "#50C878", "#FFEA00", "#CC7722", "#E34234", "#E30022", "#D68A59", "#8A360F", "#826644", "#5C6BC0", "#002D62", "#0056B3", "#529987", "#66D98B", "#FFED47", "#E69C53", "#F2552C", "#EB4D55", "#E6A875", "#9F5A33", "#9C7C5B", "#2E37FE", "#76D7EA", "#007BA7", "#2E8B57", "#ADDFAD", "#FFFF31"]
-colors2 = [
-    "#3F51B5",  # Ultramarine Blue
-    "#003153",  # Prussian Blue
-    "#0047AB",  # Cobalt Blue
-    "#40826D",  # Viridian Green
-    "#50C878",  # Emerald Green
-    "#FFEA00",  # Chrome Yellow
-    "#CC7722",  # Yellow Ochre
-    "#E34234",  # Vermilion
-    "#E30022",  # Cadmium Red
-    "#D68A59",  # Raw Sienna
-    "#8A360F",  # Burnt Sienna
-    "#826644",  # Raw Umber
-]
-colors3 = [
-    "#FFD700", # Glowing Yellow, reminiscent of "Starry Night" and "Sunflowers"
-    "#6495ED", # Cornflower Blue, reflective of the night sky in "Starry Night"
-    "#FF4500", # OrangeRed, for the vibrant tones in "Cafe Terrace at Night"
-    "#006400", # DarkGreen, echoing the cypress trees and fields
-    "#8B4513", # SaddleBrown, for the earth and branches in many landscapes
-    "#DAA520", # Goldenrod, similar to the tones in "Wheatfield with Cypresses"
-    "#00008B", # DarkBlue, for the deep night skies
-    "#008000", # Green, capturing the vitality of nature scenes
-    "#BDB76B", # DarkKhaki, for the muted tones in "The Potato Eaters"
-    "#800080", # Purple, reflecting the subtle touches in flowers and clothing
-    "#FF6347", # Tomato, for bright accents in paintings like "Red Vineyards at Arles"
-    "#4682B4", # SteelBlue, for the serene moments in "Fishing Boats on the Beach"
-    "#FA8072", # Salmon, for the soft glow of sunset and sunrise scenes
-    "#9ACD32", # YellowGreen, for the lively foliage in many landscapes
-    "#40E0D0", # Turquoise, reminiscent of the dynamic strokes in "Irises"
-    "#BA55D3", # MediumOrchid, for the playful color in "Almond Blossoms"
-    "#7FFF00", # Chartreuse, vibrant and lively for the touches of light
-    "#ADD8E6", # LightBlue, for the peaceful skies and distant horizons
-]
-
 color4 = ['#3182bd','#6baed6','#9ecae1','#e6550d','#fd8d3c','#fdd0a2','#31a354','#a1d99b', '#c7e9c0', '#756bb1', '#bcbddc', '#dadaeb', '#969696', '#bdbdbd','#d9d9d9']
-custom_cmap = LinearSegmentedColormap.from_list("custom_theme", colors2[1:])
+custom_cmap = LinearSegmentedColormap.from_list("custom_theme", color4)
 ```
 
 ***
@@ -125,37 +89,31 @@ custom_cmap = LinearSegmentedColormap.from_list("custom_theme", colors2[1:])
 Here we load a parquet file of light curves generated using the multiband_lc notebook. One can build the sample from different sources in the literature and grab the data from archives of interes.
 
 ```{code-cell} ipython3
-samp = pd.read_csv('data/AGNsample_26Feb24.csv')
-redshifts = samp['redshift']
+r=0
+redshifts, o3lum,o3corr, bpt1,bpt2, rml50, rmu, con, d4n,hda, vdisp = [],[],[],[],[],[],[],[],[],[],[]
+with open("data/agn.dat_dr4_release.v2", 'r') as file:
+    for line in file:
+        parts = line.split()  # Splits the line into parts
+        redshifts.append(float(parts[5]))
+        o3lum.append(float(parts[6]))
+        o3corr.append(float(parts[7]))
+        bpt1.append(float(parts[8]))
+        bpt2.append(float(parts[9]))
+        rml50.append(float(parts[10]))
+        rmu.append(float(parts[11]))
+        con.append(float(parts[12]))
+        d4n.append(float(parts[13]))
+        hda.append(float(parts[14]))
+        vdisp.append(float(parts[15]))
+        r+=1
+redshifts, o3lum,o3corr, bpt1,bpt2, rml50, rmu, con, d4n,hda, vdisp = np.array(redshifts), np.array(o3lum),np.array(o3corr), np.array(bpt1),np.array(bpt2), np.array(rml50), np.array(rmu), np.array(con), np.array(d4n),np.array(hda), np.array(vdisp)
 
-df_lc = pd.read_parquet('data/df_lc_022624.parquet')
-
-#df2 = df[df.index.get_level_values('label') !='64'] # remove 64 for SPIDER only as its too large
-#df_lc = update_bitsums(df2,label_num=64) # remove all bitwise sums that had 64 in them
-
-# Filter rows with the specific label
-#df4 = df3[df3.index.get_level_values('label') == '64'] # remove 64 for SPIDER only as its too large
-# Randomly select rows to drop
-#rows_to_drop_indices = np.random.choice(df4.index, size=int(len(df4) * 1), replace=False)
-# Drop these rows
-#df_lc = df3.drop(rows_to_drop_indices)
+df_lc = pd.read_parquet('output/df_lc_kauffmann.parquet')
 ```
 
 ```{code-cell} ipython3
-df_lc
-```
-
-```{code-cell} ipython3
-from plot_functions import create_figures
-_ = create_figures(df_lc = df_lc, # either df_lc (serial call) or parallel_df_lc (parallel call)
-                   show_nbr_figures = 1,  # how many plots do you actually want to see?
-                   save_output = True ,  # should the resulting plots be saved?
-                  )
-```
-
-```{code-cell} ipython3
-bands_inlc = ['W1']
-numobjs = len(df_lc.index.get_level_values('objectid')[:].unique())
+bands_inlc = ['zg','zr','W1','W2']
+numobjs = 25000
 #objects,dobjects,flabels,keeps,zlist = unify_lc(df_lc, redshifts,bands_inlc,xres=160,numplots=3,low_limit_size=50) #nearest neightbor linear interpolation
 #objects,dobjects,flabels,keeps,zlist = unify_lc_gp(df_lc,redshifts,bands_inlc,xres=160,numplots=5,low_limit_size=10) #Gaussian process unification
 sample_objids = df_lc.index.get_level_values('objectid').unique()[:numobjs]
@@ -184,6 +142,11 @@ for index, f in enumerate(fzr):
         if label not in labc:
             labc[label] = []  # Initialize the list for this label if it's not already in labc
         labc[label].append(index)  # Append the current index to the list of indices for this label
+```
+
+```{code-cell} ipython3
+redshifts1, o3lum1,o3corr1, bpt11,bpt21, rml501, rmu1, con1, d4n1,hda1, vdisp1= redshifts[keeps], o3lum[keeps],o3corr[keeps], bpt1[keeps],bpt2[keeps], rml50[keeps], rmu[keeps], con[keeps], d4n[keeps],hda[keeps], vdisp[keeps]
+redshifts2, o3lum2,o3corr2, bpt12,bpt22, rml502, rmu2, con2, d4n2,hda2, vdisp2 = redshifts1[p], o3lum1[p],o3corr1[p], bpt11[p],bpt21[p], rml501[p], rmu1[p], con1[p], d4n1[p],hda1[p], vdisp1[p]
 ```
 
 ```{code-cell} ipython3
@@ -283,6 +246,10 @@ plt.savefig('output/sample.png')
 ```
 
 ```{code-cell} ipython3
+print(data)
+```
+
+```{code-cell} ipython3
 plt.figure(figsize=(12,8))
 markersize=200
 mapper = umap.UMAP(n_neighbors=5,min_dist=0.9,metric='manhattan',random_state=20).fit(data)
@@ -325,6 +292,98 @@ plt.colorbar(cf,cax=cax)
 
 plt.tight_layout()
 #plt.savefig('umap-ztf.png')
+```
+
+```{code-cell} ipython3
+plt.figure(figsize=(12,4))
+plt.subplot(1,2,1)
+thiscolor=o3lum2
+u = (thiscolor<9) & (thiscolor>3)
+plt.title('OIII Luminosity')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=10,c = thiscolor[u],edgecolor='gray')
+plt.axis('off')
+plt.colorbar()
+
+plt.subplot(1,2,2)
+thiscolor=o3corr2
+u = (thiscolor<10) & (thiscolor>3)
+plt.title('OIII Luminosity corrected')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=10,c = thiscolor[u],edgecolor='gray')
+plt.axis('off')
+plt.colorbar()
+```
+
+```{code-cell} ipython3
+plt.figure(figsize=(12,4))
+plt.subplot(1,2,1)
+thiscolor=bpt12
+u = (thiscolor<1.5) & (thiscolor>-1)
+plt.title('BPT1')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=15,c = thiscolor[u],edgecolor='gray')
+plt.axis('off')
+plt.colorbar()
+
+plt.subplot(1,2,2)
+thiscolor=bpt22
+u = (thiscolor<1.) & (thiscolor>-1)
+plt.title('BPT2')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=15,c = thiscolor[u],edgecolor='gray')
+plt.axis('off')
+plt.colorbar()
+```
+
+```{code-cell} ipython3
+plt.figure(figsize=(16,4))
+plt.subplot(1,3,1)
+thiscolor=rml502
+u = (thiscolor<13) & (thiscolor>8)
+plt.title('Mass 50')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=15,c = thiscolor[u],edgecolor='gray')
+plt.axis('off')
+plt.colorbar()
+
+plt.subplot(1,3,2)
+thiscolor=rmu2
+u = (thiscolor<11) & (thiscolor>7)
+plt.title('Mass Surface density')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=15,c = thiscolor[u],edgecolor='gray')
+plt.axis('off')
+plt.colorbar()
+
+plt.subplot(1,3,3)
+thiscolor=con2
+u = (thiscolor<5) & (thiscolor>1)
+plt.title('Concentration')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=15,c = thiscolor[u],edgecolor='gray')
+plt.axis('off')
+plt.colorbar()
+```
+
+```{code-cell} ipython3
+plt.figure(figsize=(16,4))
+plt.subplot(1,3,1)
+thiscolor=d4n2
+u = (thiscolor<2.5) & (thiscolor>1)
+plt.title('D4000?')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=15,c = thiscolor[u],edgecolor='gray')
+plt.axis('off')
+plt.colorbar()
+
+plt.subplot(1,3,2)
+thiscolor=hda2
+u = (thiscolor<10) & (thiscolor>-10)
+plt.title('HDA')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=15,c = thiscolor[u],edgecolor='gray')
+plt.axis('off')
+plt.colorbar()
+
+plt.subplot(1,3,3)
+thiscolor=vdisp2
+u = (thiscolor<400) & (thiscolor>0)
+plt.title('Vdispersion')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=15,c = thiscolor[u],edgecolor='gray')
+plt.axis('off')
+plt.colorbar()
 ```
 
 ```{code-cell} ipython3

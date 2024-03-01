@@ -10,6 +10,7 @@ from sklearn.gaussian_process.kernels import RBF
 from sklearn.gaussian_process.kernels import Matern
 from sklearn.gaussian_process.kernels import RationalQuadratic
 
+from concurrent.futures import ThreadPoolExecutor
 
 
 from tqdm import tqdm
@@ -257,6 +258,7 @@ def unify_lc_gp(df_lc,redshifts,bands_inlc=['zr','zi','zg'],xres=320,numplots=1,
 
                 else:
                     keepobj=0
+                    break
             if (printcounter<numplots):
                 #plt.title('Object '+str(obj))#+' from '+label[0]+' et al.')
                 plt.xlabel(r'$\rm Time(MJD)$',size=15)
@@ -274,7 +276,66 @@ def unify_lc_gp(df_lc,redshifts,bands_inlc=['zr','zi','zg'],xres=320,numplots=1,
 
         #if keepindex>10:
     return np.array(objects),np.array(dobjects),flabels,keeps,np.array(zlist)
-            
+         
+def process_single_object(obj, singleobj, redshift,redindex, bands_inlc, xres, low_limit_size, kernel):
+    label = singleobj.index.unique('label')
+    bands = singleobj.loc[label[0],:,:].index.get_level_values('band')[:].unique()
+    keepobj = 0
+    obj_newy, obj_newdy = [], []
+
+    if len(np.intersect1d(bands, bands_inlc)) == len(bands_inlc):
+        keepobj = 1
+        for l, band in enumerate(bands_inlc):
+            band_lc = singleobj.loc[label[0], band, :]
+            band_lc_clean = band_lc  # Assuming preprocessing has been done beforehand
+            x, y, dy = np.array(band_lc_clean.index.get_level_values('time') - band_lc_clean.index.get_level_values('time')[0]), np.array(band_lc_clean.flux), np.array(band_lc_clean.err)
+
+            x2, y2, dy2 = x[np.argsort(x)], y[np.argsort(x)], dy[np.argsort(x)]
+            if len(x2) > low_limit_size and (not np.isnan(y2).any()) and (not np.isnan(dy2).any()):
+                X = x2.reshape(-1, 1)
+                gp = GaussianProcessRegressor(kernel=kernel, alpha=dy2**2)
+                gp.fit(X, y2)
+                
+                x_pred = np.linspace(0, 1600, xres).reshape(-1, 1) if band not in ['W1', 'W2'] else np.linspace(0, 4000, xres).reshape(-1, 1)
+                y_pred, sigma_pred = gp.predict(x_pred, return_std=True)
+                obj_newy.append(y_pred)
+                obj_newdy.append(sigma_pred)
+            else:
+                keepobj = 0
+
+        if keepobj and not np.isnan(obj_newy).any():
+            return (obj_newy, obj_newdy, label[0], redshift,redindex)
+    return None
+
+def unify_lc_gp_parallel(df_lc, redshifts, bands_inlc=['zr', 'zi', 'zg'], xres=320, low_limit_size=5):
+    kernel = RationalQuadratic(length_scale=1, alpha=0.1)
+    objids = df_lc.index.get_level_values('objectid')[:].unique()
+    objid_to_index = {objid: index for index, objid in enumerate(df_lc.index.get_level_values('objectid').unique())}
+
+    preprocessed_data = [
+        (obj, df_lc.loc[obj,:,:,:], redshifts[objid_to_index[obj]], objid_to_index[obj], bands_inlc, xres, low_limit_size, kernel) for obj in objids]
+    # Correcting the preparation of preprocessed_data to include all necessary parameters
+ #   preprocessed_data = [(obj, df_lc.loc[obj,:,:,:], redshifts[obj], bands_inlc, xres, low_limit_size, kernel) for obj in objids]
+
+    results = []
+    with ThreadPoolExecutor(max_workers=10) as executor:  # Adjust max_workers based on your system
+        futures = [executor.submit(process_single_object, *args) for args in preprocessed_data]
+        for future in tqdm(futures, desc="Processing objects"):
+            result = future.result()
+            if result is not None:
+                results.append(result)
+
+    objects, dobjects, flabels, zlist,keeps = [], [], [], [],[]
+    for result in results:
+        obj_newy, obj_newdy, label, redshift,redindex = result
+        objects.append(obj_newy)
+        dobjects.append(obj_newdy)
+        flabels.append(label)
+        zlist.append(redshift)
+        keeps.append(redindex)
+    
+    return np.array(objects), np.array(dobjects), flabels, np.array(zlist),keeps
+
 def combine_bands(objects,bands):
     '''
     combine all lightcurves in individual bands of an object
