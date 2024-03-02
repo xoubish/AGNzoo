@@ -13,7 +13,7 @@ kernelspec:
 
 # How do AGNs selected with different techniques compare?
 
-By the IPAC Science Platform Team, last edit: Feb 29th, 2024
+By the IPAC Science Platform Team, last edit: March 1st, 2024
 
 ***
 
@@ -126,9 +126,10 @@ Here we load a parquet file of light curves generated using the multiband_lc not
 
 ```{code-cell} ipython3
 samp = pd.read_csv('data/AGNsample_26Feb24.csv')
-redshifts = samp['redshift']
 
 df_lc = pd.read_parquet('data/df_lc_022624.parquet')
+objids = df_lc.index.get_level_values('objectid')[:].unique()
+redshifts = samp['redshift']#[objids]
 
 #df2 = df[df.index.get_level_values('label') !='64'] # remove 64 for SPIDER only as its too large
 #df_lc = update_bitsums(df2,label_num=64) # remove all bitwise sums that had 64 in them
@@ -160,7 +161,7 @@ numobjs = len(df_lc.index.get_level_values('objectid')[:].unique())
 #objects,dobjects,flabels,keeps,zlist = unify_lc_gp(df_lc,redshifts,bands_inlc,xres=160,numplots=5,low_limit_size=10) #Gaussian process unification
 sample_objids = df_lc.index.get_level_values('objectid').unique()[:numobjs]
 df_lc_small = df_lc.loc[sample_objids]
-objects,dobjects,flabels,zlist,keeps = unify_lc_gp_parallel(df_lc_small,redshifts[:numobjs],bands_inlc=bands_inlc,xres=120)
+objects,dobjects,flabels,zlist,keeps = unify_lc_gp_parallel(df_lc_small,redshifts,bands_inlc=bands_inlc,xres=60)
 
 
 # calculate some basic statistics with a sigmaclipping with width 5sigma
@@ -244,7 +245,7 @@ i=0
 colorlabel =[0,0,0,1,1,2,2,2,2,2,3,3,3]
 
 for el in cadence.keys():
-    print(el,len(cadence[el]),np.mean(cadence[el]),np.std(cadence[el]))
+    #print(el,len(cadence[el]),np.mean(cadence[el]),np.std(cadence[el]))
     #print(el,len(timerange[el]),np.mean(timerange[el]),np.std(timerange[el]))
     ax1.scatter(np.mean(cadence[el]),np.mean(timerange[el]),s=seen[el],alpha=0.7,c=color4[colorlabel[i]],label=el)
     ax1.errorbar(np.mean(cadence[el]),np.mean(timerange[el]),label=el,yerr=np.std(timerange[el]),xerr=np.std(cadence[el]),alpha=0.2,c=color4[colorlabel[i]])
@@ -284,8 +285,8 @@ plt.savefig('output/sample.png')
 
 ```{code-cell} ipython3
 plt.figure(figsize=(12,8))
-markersize=200
-mapper = umap.UMAP(n_neighbors=5,min_dist=0.9,metric='manhattan',random_state=20).fit(data)
+markersize=100
+mapper = umap.UMAP(n_neighbors=50,min_dist=0.9,metric='manhattan',random_state=20).fit(data)
 
 
 ax1 = plt.subplot(2,2,3)
@@ -329,7 +330,7 @@ plt.tight_layout()
 
 ```{code-cell} ipython3
 # Calculate 2D histogram
-hist, x_edges, y_edges = np.histogram2d(mapper.embedding_[:, 0], mapper.embedding_[:, 1], bins=12)
+hist, x_edges, y_edges = np.histogram2d(mapper.embedding_[:, 0], mapper.embedding_[:, 1], bins=10)
 plt.figure(figsize=(15,12))
 i=1
 laborder = ['SDSS_QSO','WISE_Variable','Optical_Variable','Galex_Variable','SPIDER_AGN','SPIDER_AGNBL','SPIDER_QSOBL','SPIDER_BL','Turn-on','Turn-off','TDE','Fermi_Blazars']
@@ -347,6 +348,223 @@ for label in laborder:
         i+=1
 plt.tight_layout()
 #plt.savefig('output/umap2-ztfwise-gp.png')
+```
+
+```{code-cell} ipython3
+bands_inlc = ['W2']
+numobjs = len(df_lc.index.get_level_values('objectid')[:].unique())
+#objects,dobjects,flabels,keeps,zlist = unify_lc(df_lc, redshifts,bands_inlc,xres=160,numplots=3,low_limit_size=50) #nearest neightbor linear interpolation
+#objects,dobjects,flabels,keeps,zlist = unify_lc_gp(df_lc,redshifts,bands_inlc,xres=160,numplots=5,low_limit_size=10) #Gaussian process unification
+sample_objids = df_lc.index.get_level_values('objectid').unique()[:numobjs]
+df_lc_small = df_lc.loc[sample_objids]
+objects,dobjects,flabels,zlist,keeps = unify_lc_gp_parallel(df_lc_small,redshifts,bands_inlc=bands_inlc,xres=60)
+
+
+# calculate some basic statistics with a sigmaclipping with width 5sigma
+fvar, maxarray, meanarray = stat_bands(objects,dobjects,bands_inlc,sigmacl=5)
+
+# combine different waveband into one array
+dat_notnormal = combine_bands(objects,bands_inlc)
+
+# Normalize the combinde array by mean brightness in a waveband after clipping outliers:
+datm = normalize_clipmax_objects(dat_notnormal,meanarray,band = 0)
+
+# shuffle data incase the ML routines are sensitive to order
+data,fzr,p = shuffle_datalabel(datm,flabels)
+fvar_arr,maximum_arr,average_arr = fvar[:,p],maxarray[:,p],meanarray[:,p]
+redshift_shuffled = zlist[p]
+
+labc = {}  # Initialize labc to hold indices of each unique label
+for index, f in enumerate(fzr):
+    lab = translate_bitwise_sum_to_labels(int(f))
+    for label in lab:
+        if label not in labc:
+            labc[label] = []  # Initialize the list for this label if it's not already in labc
+        labc[label].append(index)  # Append the current index to the list of indices for this label
+```
+
+```{code-cell} ipython3
+plt.figure(figsize=(12,8))
+markersize=100
+mapper = umap.UMAP(n_neighbors=50,min_dist=0.9,metric='manhattan',random_state=20).fit(data)
+
+hist, x_edges, y_edges = np.histogram2d(mapper.embedding_[:, 0], mapper.embedding_[:, 1], bins=10)
+plt.figure(figsize=(15,12))
+i=1
+laborder = ['SDSS_QSO','WISE_Variable','Optical_Variable','Galex_Variable','SPIDER_AGN','SPIDER_AGNBL','SPIDER_QSOBL','SPIDER_BL','Turn-on','Turn-off','TDE','Fermi_Blazars']
+for label in laborder:
+    if label in labc:
+        indices = labc[label]
+        hist_per_cluster, _, _ = np.histogram2d(mapper.embedding_[indices,0], mapper.embedding_[indices,1], bins=(x_edges, y_edges))
+        prob = hist_per_cluster / hist
+        plt.subplot(4,4,i)
+        plt.title(label)
+        plt.contourf(x_edges[:-1], y_edges[:-1], prob.T, levels=20, alpha=0.8,cmap=custom_cmap)
+        plt.colorbar()
+        plt.axis('off')
+        #cf = ax0.scatter(mapper.embedding_[indices,0],mapper.embedding_[indices,1],s=80,alpha=0.5,edgecolor='gray',label=label,c=colors[i-1])
+        i+=1
+plt.tight_layout()
+```
+
+```{code-cell} ipython3
+bands_inlc = ['zg']
+numobjs = len(df_lc.index.get_level_values('objectid')[:].unique())
+#objects,dobjects,flabels,keeps,zlist = unify_lc(df_lc, redshifts,bands_inlc,xres=160,numplots=3,low_limit_size=50) #nearest neightbor linear interpolation
+#objects,dobjects,flabels,keeps,zlist = unify_lc_gp(df_lc,redshifts,bands_inlc,xres=160,numplots=5,low_limit_size=10) #Gaussian process unification
+sample_objids = df_lc.index.get_level_values('objectid').unique()[:numobjs]
+df_lc_small = df_lc.loc[sample_objids]
+objects,dobjects,flabels,zlist,keeps = unify_lc_gp_parallel(df_lc_small,redshifts,bands_inlc=bands_inlc,xres=60)
+
+
+# calculate some basic statistics with a sigmaclipping with width 5sigma
+fvar, maxarray, meanarray = stat_bands(objects,dobjects,bands_inlc,sigmacl=5)
+
+# combine different waveband into one array
+dat_notnormal = combine_bands(objects,bands_inlc)
+
+# Normalize the combinde array by mean brightness in a waveband after clipping outliers:
+datm = normalize_clipmax_objects(dat_notnormal,meanarray,band = 0)
+
+# shuffle data incase the ML routines are sensitive to order
+data,fzr,p = shuffle_datalabel(datm,flabels)
+fvar_arr,maximum_arr,average_arr = fvar[:,p],maxarray[:,p],meanarray[:,p]
+redshift_shuffled = zlist[p]
+
+labc = {}  # Initialize labc to hold indices of each unique label
+for index, f in enumerate(fzr):
+    lab = translate_bitwise_sum_to_labels(int(f))
+    for label in lab:
+        if label not in labc:
+            labc[label] = []  # Initialize the list for this label if it's not already in labc
+        labc[label].append(index)  # Append the current index to the list of indices for this label
+```
+
+```{code-cell} ipython3
+plt.figure(figsize=(12,8))
+markersize=100
+mapper = umap.UMAP(n_neighbors=50,min_dist=0.9,metric='manhattan',random_state=20).fit(data)
+
+hist, x_edges, y_edges = np.histogram2d(mapper.embedding_[:, 0], mapper.embedding_[:, 1], bins=10)
+plt.figure(figsize=(15,12))
+i=1
+laborder = ['SDSS_QSO','WISE_Variable','Optical_Variable','Galex_Variable','SPIDER_AGN','SPIDER_AGNBL','SPIDER_QSOBL','SPIDER_BL','Turn-on','Turn-off','TDE','Fermi_Blazars']
+for label in laborder:
+    if label in labc:
+        indices = labc[label]
+        hist_per_cluster, _, _ = np.histogram2d(mapper.embedding_[indices,0], mapper.embedding_[indices,1], bins=(x_edges, y_edges))
+        prob = hist_per_cluster / hist
+        plt.subplot(4,4,i)
+        plt.title(label)
+        plt.contourf(x_edges[:-1], y_edges[:-1], prob.T, levels=20, alpha=0.8,cmap=custom_cmap)
+        plt.colorbar()
+        plt.axis('off')
+        #cf = ax0.scatter(mapper.embedding_[indices,0],mapper.embedding_[indices,1],s=80,alpha=0.5,edgecolor='gray',label=label,c=colors[i-1])
+        i+=1
+plt.tight_layout()
+```
+
+```{code-cell} ipython3
+bands_inlc = ['zg','zr','zi','W1','W2']
+numobjs = len(df_lc.index.get_level_values('objectid')[:].unique())
+objids = df_lc.index.get_level_values('objectid')[:].unique()
+#objects,dobjects,flabels,keeps,zlist = unify_lc(df_lc, redshifts[objids],bands_inlc,xres=160,numplots=3,low_limit_size=10) #nearest neightbor linear interpolation
+#objects,dobjects,flabels,keeps,zlist = unify_lc_gp(df_lc,redshifts[objids],bands_inlc,xres=160,numplots=5,low_limit_size=10) #Gaussian process unification
+sample_objids = df_lc.index.get_level_values('objectid').unique()[:numobjs]
+df_lc_small = df_lc.loc[sample_objids]
+objects,dobjects,flabels,zlist,keeps = unify_lc_gp_parallel(df_lc_small,redshifts,bands_inlc=bands_inlc,xres=160,low_limit_size=10)
+
+
+# calculate some basic statistics with a sigmaclipping with width 5sigma
+fvar, maxarray, meanarray = stat_bands(objects,dobjects,bands_inlc,sigmacl=5)
+
+# combine different waveband into one array
+dat_notnormal = combine_bands(objects,bands_inlc)
+
+# Normalize the combinde array by mean brightness in a waveband after clipping outliers:
+datm = normalize_clipmax_objects(dat_notnormal,meanarray,band = 0)
+
+# shuffle data incase the ML routines are sensitive to order
+data,fzr,p = shuffle_datalabel(datm,flabels)
+fvar_arr,maximum_arr,average_arr = fvar[:,p],maxarray[:,p],meanarray[:,p]
+redshift_shuffled = zlist[p]
+
+labc = {}  # Initialize labc to hold indices of each unique label
+for index, f in enumerate(fzr):
+    lab = translate_bitwise_sum_to_labels(int(f))
+    for label in lab:
+        if label not in labc:
+            labc[label] = []  # Initialize the list for this label if it's not already in labc
+        labc[label].append(index)  # Append the current index to the list of indices for this label
+```
+
+```{code-cell} ipython3
+plt.figure(figsize=(12,8))
+markersize=100
+mapper = umap.UMAP(n_neighbors=50,min_dist=0.9,metric='manhattan',random_state=20).fit(data)
+
+
+ax1 = plt.subplot(2,2,3)
+ax1.set_title(r'mean brightness',size=20)
+cf = ax1.scatter(mapper.embedding_[:,0],mapper.embedding_[:,1],s=markersize,c=np.log10(np.nansum(average_arr,axis=0)),edgecolor='gray')
+plt.axis('off')
+divider = make_axes_locatable(ax1)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+plt.colorbar(cf,cax=cax)
+
+
+ax0 = plt.subplot(2,2,4)
+ax0.set_title(r'mean fractional variation',size=20)
+cf = ax0.scatter(mapper.embedding_[:,0],mapper.embedding_[:,1],s=markersize,c=stretch_small_values_arctan(np.nansum(fvar_arr,axis=0),factor=3),edgecolor='gray')
+plt.axis('off')
+divider = make_axes_locatable(ax0)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+plt.colorbar(cf,cax=cax)
+
+ax2 = plt.subplot(2,2,1)
+ax2.set_title('sample origin',size=20)
+counts = 1
+for label, indices in labc.items():
+    cf = ax2.scatter(mapper.embedding_[indices,0],mapper.embedding_[indices,1],s=markersize,c = colors[counts],alpha=0.8,edgecolor='gray',label=label)
+    counts+=1
+plt.legend(fontsize=10)
+#plt.colorbar(cf)
+plt.axis('off')
+
+ax3 = plt.subplot(2,2,2)
+ax3.set_title('redshifts',size=20)
+ax3.scatter(mapper.embedding_[:,0],mapper.embedding_[:,1],s=markersize,c = redshift_shuffled,edgecolor='gray')
+plt.axis('off')
+divider = make_axes_locatable(ax3)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+plt.colorbar(cf,cax=cax)
+
+plt.tight_layout()
+#plt.savefig('umap-ztf.png')
+```
+
+```{code-cell} ipython3
+plt.figure(figsize=(12,8))
+markersize=100
+mapper = umap.UMAP(n_neighbors=50,min_dist=0.9,metric='manhattan',random_state=20).fit(data)
+
+hist, x_edges, y_edges = np.histogram2d(mapper.embedding_[:, 0], mapper.embedding_[:, 1], bins=10)
+plt.figure(figsize=(15,12))
+i=1
+laborder = ['SDSS_QSO','WISE_Variable','Optical_Variable','Galex_Variable','SPIDER_AGN','SPIDER_AGNBL','SPIDER_QSOBL','SPIDER_BL','Turn-on','Turn-off','TDE','Fermi_Blazars']
+for label in laborder:
+    if label in labc:
+        indices = labc[label]
+        hist_per_cluster, _, _ = np.histogram2d(mapper.embedding_[indices,0], mapper.embedding_[indices,1], bins=(x_edges, y_edges))
+        prob = hist_per_cluster / hist
+        plt.subplot(4,4,i)
+        plt.title(label)
+        plt.contourf(x_edges[:-1], y_edges[:-1], prob.T, levels=20, alpha=0.8,cmap=custom_cmap)
+        plt.colorbar()
+        plt.axis('off')
+        #cf = ax0.scatter(mapper.embedding_[indices,0],mapper.embedding_[indices,1],s=80,alpha=0.5,edgecolor='gray',label=label,c=colors[i-1])
+        i+=1
+plt.tight_layout()
 ```
 
 ```{code-cell} ipython3
