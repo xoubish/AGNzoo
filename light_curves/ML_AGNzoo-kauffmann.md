@@ -13,7 +13,7 @@ kernelspec:
 
 # How do AGNs selected with different techniques compare?
 
-By the IPAC Science Platform Team, last edit: Feb 29th, 2024
+By the IPAC Science Platform Team, last edit: March 1st, 2024
 
 ***
 
@@ -112,13 +112,13 @@ df_lc = pd.read_parquet('output/df_lc_kauffmann.parquet')
 ```
 
 ```{code-cell} ipython3
-bands_inlc = ['zg','zr','W1','W2']
-numobjs = 25000
+bands_inlc = ['zg','zr','zi','W1','W2']
+numobjs = 1000#len(redshifts)
 #objects,dobjects,flabels,keeps,zlist = unify_lc(df_lc, redshifts,bands_inlc,xres=160,numplots=3,low_limit_size=50) #nearest neightbor linear interpolation
 #objects,dobjects,flabels,keeps,zlist = unify_lc_gp(df_lc,redshifts,bands_inlc,xres=160,numplots=5,low_limit_size=10) #Gaussian process unification
 sample_objids = df_lc.index.get_level_values('objectid').unique()[:numobjs]
 df_lc_small = df_lc.loc[sample_objids]
-objects,dobjects,flabels,zlist,keeps = unify_lc_gp_parallel(df_lc_small,redshifts[:numobjs],bands_inlc=bands_inlc,xres=120)
+objects,dobjects,flabels,zlist,keeps = unify_lc_gp_parallel(df_lc_small,redshifts,bands_inlc=bands_inlc,xres=180)
 
 
 # calculate some basic statistics with a sigmaclipping with width 5sigma

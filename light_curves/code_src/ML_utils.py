@@ -277,12 +277,11 @@ def unify_lc_gp(df_lc,redshifts,bands_inlc=['zr','zi','zg'],xres=320,numplots=1,
         #if keepindex>10:
     return np.array(objects),np.array(dobjects),flabels,keeps,np.array(zlist)
          
-def process_single_object(obj, singleobj, redshift,redindex, bands_inlc, xres, low_limit_size, kernel):
+def process_single_object(obj, singleobj, redshift, bands_inlc, xres, low_limit_size, kernel):
     label = singleobj.index.unique('label')
     bands = singleobj.loc[label[0],:,:].index.get_level_values('band')[:].unique()
     keepobj = 0
     obj_newy, obj_newdy = [], []
-
     if len(np.intersect1d(bands, bands_inlc)) == len(bands_inlc):
         keepobj = 1
         for l, band in enumerate(bands_inlc):
@@ -304,18 +303,14 @@ def process_single_object(obj, singleobj, redshift,redindex, bands_inlc, xres, l
                 keepobj = 0
 
         if keepobj and not np.isnan(obj_newy).any():
-            return (obj_newy, obj_newdy, label[0], redshift,redindex)
+            return (obj_newy, obj_newdy, label[0], redshift,obj)
     return None
 
 def unify_lc_gp_parallel(df_lc, redshifts, bands_inlc=['zr', 'zi', 'zg'], xres=320, low_limit_size=5):
     kernel = RationalQuadratic(length_scale=1, alpha=0.1)
     objids = df_lc.index.get_level_values('objectid')[:].unique()
-    objid_to_index = {objid: index for index, objid in enumerate(df_lc.index.get_level_values('objectid').unique())}
-
     preprocessed_data = [
-        (obj, df_lc.loc[obj,:,:,:], redshifts[objid_to_index[obj]], objid_to_index[obj], bands_inlc, xres, low_limit_size, kernel) for obj in objids]
-    # Correcting the preparation of preprocessed_data to include all necessary parameters
- #   preprocessed_data = [(obj, df_lc.loc[obj,:,:,:], redshifts[obj], bands_inlc, xres, low_limit_size, kernel) for obj in objids]
+        (obj, df_lc.loc[obj,:,:,:], redshifts[obj], bands_inlc, xres, low_limit_size, kernel) for obj in objids]
 
     results = []
     with ThreadPoolExecutor(max_workers=10) as executor:  # Adjust max_workers based on your system
