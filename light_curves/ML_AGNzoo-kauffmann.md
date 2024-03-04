@@ -4,11 +4,11 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.16.0
+    jupytext_version: 1.16.1
 kernelspec:
-  display_name: root *
+  display_name: Python 3 (ipykernel)
   language: python
-  name: conda-root-py
+  name: python3
 ---
 
 # How do AGNs selected with different techniques compare?
@@ -108,12 +108,12 @@ with open("data/agn.dat_dr4_release.v2", 'r') as file:
         r+=1
 redshifts, o3lum,o3corr, bpt1,bpt2, rml50, rmu, con, d4n,hda, vdisp = np.array(redshifts), np.array(o3lum),np.array(o3corr), np.array(bpt1),np.array(bpt2), np.array(rml50), np.array(rmu), np.array(con), np.array(d4n),np.array(hda), np.array(vdisp)
 
-df_lc = pd.read_parquet('output/df_lc_kauffmann.parquet')
+df_lc = pd.read_parquet('data/df_lc_kauffmann.parquet')
 ```
 
 ```{code-cell} ipython3
 bands_inlc = ['zg','zr','zi','W1','W2']
-numobjs = 1000#len(redshifts)
+numobjs = len(df_lc.index.get_level_values('objectid')[:].unique())
 #objects,dobjects,flabels,keeps,zlist = unify_lc(df_lc, redshifts,bands_inlc,xres=160,numplots=3,low_limit_size=50) #nearest neightbor linear interpolation
 #objects,dobjects,flabels,keeps,zlist = unify_lc_gp(df_lc,redshifts,bands_inlc,xres=160,numplots=5,low_limit_size=10) #Gaussian process unification
 sample_objids = df_lc.index.get_level_values('objectid').unique()[:numobjs]
@@ -142,9 +142,7 @@ for index, f in enumerate(fzr):
         if label not in labc:
             labc[label] = []  # Initialize the list for this label if it's not already in labc
         labc[label].append(index)  # Append the current index to the list of indices for this label
-```
-
-```{code-cell} ipython3
+        
 # Assuming `data` is your numpy array
 nan_rows = np.any(np.isnan(data), axis=1)
 clean_data = data[~nan_rows]  # Rows without NaNs
@@ -154,12 +152,21 @@ redshifts2, o3lum2,o3corr2, bpt12,bpt22, rml502, rmu2, con2, d4n2,hda2, vdisp2 =
 redshifts3, o3lum3,o3corr3, bpt13,bpt23, rml503, rmu3, con3, d4n3,hda3, vdisp3 = redshifts2[~nan_rows], o3lum2[~nan_rows],o3corr2[~nan_rows], bpt12[~nan_rows],bpt22[~nan_rows], rml502[~nan_rows], rmu2[~nan_rows], con2[~nan_rows], d4n2[~nan_rows],hda2[~nan_rows], vdisp2[~nan_rows]
 
 fvar_arr1,average_arr1 = fvar_arr[:,~nan_rows],average_arr[:,~nan_rows]
+np.savez('data/kauffit_all',data=clean_data,fvar_arr1 = fvar_arr1, average_arr1 = average_arr1,redshifts3=redshifts3,o3lum3=o3lum3,o3corr3=o3corr3,bpt13=bpt13,bpt23=bpt23,rml503=rml503,rmu3=rmu3,con3=con3,d4n3=d4n3,hda3=hda3,vdisp3=vdisp3)
+```
+
+```{code-cell} ipython3
+d = np.load('data/kauffit_all.npz',allow_pickle=True)
+clean_data = d['data']
+fvar_arr1,average_arr1 = d['fvar_arr1'],d['average_arr1']
+redshifts3, o3lum3,o3corr3, bpt13,bpt23, rml503, rmu3, con3, d4n3,hda3, vdisp3 = d['redshifts3'], d['o3lum3'],d['o3corr3'], d['bpt13'],d['bpt23'], d['rml503'], d['rmu3'], d['con3'],d['d4n3'],d['hda3'], d['vdisp3']
+                                                                                   
 ```
 
 ```{code-cell} ipython3
 plt.figure(figsize=(12,5))
-markersize=200
-mapper = umap.UMAP(n_neighbors=5,min_dist=0.9,metric='manhattan',random_state=20).fit(clean_data)
+markersize=50
+mapper = umap.UMAP(n_neighbors=50,min_dist=0.9,metric='manhattan',random_state=5).fit(clean_data)
 
 ax1 = plt.subplot(1,2,1)
 ax1.set_title(r'mean brightness',size=20)
@@ -187,7 +194,7 @@ plt.subplot(1,2,1)
 thiscolor=o3lum3
 u = (thiscolor<9) & (thiscolor>3)
 plt.title('OIII Luminosity')
-plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=10,c = thiscolor[u],edgecolor='gray')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=20,c = thiscolor[u],edgecolor='gray')
 plt.axis('off')
 plt.colorbar()
 
@@ -195,7 +202,7 @@ plt.subplot(1,2,2)
 thiscolor=o3corr3
 u = (thiscolor<10) & (thiscolor>3)
 plt.title('OIII Luminosity corrected')
-plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=10,c = thiscolor[u],edgecolor='gray')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=20,c = thiscolor[u],edgecolor='gray')
 plt.axis('off')
 plt.colorbar()
 ```
@@ -206,7 +213,7 @@ plt.subplot(1,2,1)
 thiscolor=bpt13
 u = (thiscolor<1.5) & (thiscolor>-1)
 plt.title('BPT1')
-plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=15,c = thiscolor[u],edgecolor='gray')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=20,c = thiscolor[u],edgecolor='gray')
 plt.axis('off')
 plt.colorbar()
 
@@ -214,7 +221,7 @@ plt.subplot(1,2,2)
 thiscolor=bpt23
 u = (thiscolor<1.) & (thiscolor>-1)
 plt.title('BPT2')
-plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=15,c = thiscolor[u],edgecolor='gray')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=20,c = thiscolor[u],edgecolor='gray')
 plt.axis('off')
 plt.colorbar()
 ```
@@ -225,21 +232,21 @@ plt.subplot(1,3,1)
 thiscolor=rml503
 u = (thiscolor<13) & (thiscolor>8)
 plt.title('Mass 50')
-plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=15,c = thiscolor[u],edgecolor='gray')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=20,c = thiscolor[u],edgecolor='gray')
 plt.axis('off')
 plt.colorbar()
 
 plt.subplot(1,3,2)
 thiscolor=rmu3
-u = (thiscolor<11) & (thiscolor>7)
+u = (thiscolor<10) & (thiscolor>7)
 plt.title('Mass Surface density')
-plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=15,c = thiscolor[u],edgecolor='gray')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=20,c = thiscolor[u],edgecolor='gray')
 plt.axis('off')
 plt.colorbar()
 
 plt.subplot(1,3,3)
 thiscolor=con3
-u = (thiscolor<5) & (thiscolor>1)
+u = (thiscolor<4) & (thiscolor>1)
 plt.title('Concentration')
 plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=15,c = thiscolor[u],edgecolor='gray')
 plt.axis('off')
@@ -252,7 +259,7 @@ plt.subplot(1,3,1)
 thiscolor=d4n3
 u = (thiscolor<2.5) & (thiscolor>1)
 plt.title('D4000?')
-plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=15,c = thiscolor[u],edgecolor='gray')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=20,c = thiscolor[u],edgecolor='gray')
 plt.axis('off')
 plt.colorbar()
 
@@ -260,7 +267,7 @@ plt.subplot(1,3,2)
 thiscolor=hda3
 u = (thiscolor<10) & (thiscolor>-10)
 plt.title('HDA')
-plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=15,c = thiscolor[u],edgecolor='gray')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=20,c = thiscolor[u],edgecolor='gray')
 plt.axis('off')
 plt.colorbar()
 
@@ -274,7 +281,7 @@ plt.colorbar()
 ```
 
 ```{code-cell} ipython3
-msz0,msz1 = 40,40
+msz0,msz1 = 35,35
 sm = sompy.SOMFactory.build(clean_data, mapsize=[msz0,msz1], mapshape='planar', lattice='rect', initialization='pca')
 sm.train(n_job=4, shared_memory = 'no')
 ```
@@ -291,15 +298,15 @@ BPT1_r,BPT2_r=np.zeros([msz0,msz1]),np.zeros([msz0,msz1])
 for i in range(msz0):
     for j in range(msz1):
         unja=(x==i)&(y==j)
-        BPT1_r[i,j]=(np.nanmedian(bpt13[unja]))
-        BPT2_r[i,j]=(np.nanmedian(bpt23[unja]))
+        BPT1_r[i,j]=(np.nanmedian(hda3[unja]))
+        BPT2_r[i,j]=(np.nanmedian(rml503[unja]))
 
 plt.figure(figsize=(9,5))
 plt.subplot(1,2,1)
-cf=plt.imshow(BPT1_r,vmin=-1,vmax=1,origin='lower',cmap='viridis')
+cf=plt.imshow(BPT1_r,vmin=-5,vmax=5,origin='lower',cmap='viridis')
 plt.axis('off')
 plt.subplot(1,2,2)
-cf=plt.imshow(BPT2_r,vmin=-1,vmax=1,origin='lower',cmap='viridis')
+cf=plt.imshow(BPT2_r,vmin=10,vmax=11.5,origin='lower',cmap='viridis')
 plt.axis('off')
 plt.tight_layout()
 ```
