@@ -4,16 +4,16 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.16.0
+    jupytext_version: 1.16.1
 kernelspec:
-  display_name: root *
+  display_name: Python 3 (ipykernel)
   language: python
-  name: conda-root-py
+  name: python3
 ---
 
 # How do AGNs selected with different techniques compare?
 
-By the IPAC Science Platform Team, last edit: March 1st, 2024
+By the IPAC Science Platform Team, last edit: March 6th, 2024
 
 ***
 
