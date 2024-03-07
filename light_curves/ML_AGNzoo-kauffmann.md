@@ -63,6 +63,7 @@ from sklearn.gaussian_process.kernels import RationalQuadratic, RBF
 from scipy.interpolate import interp1d
 from tqdm import tqdm
 import random
+import astropy.io.fits as fits
 
 import umap
 from sompy import * #using the SOMPY package from https://github.com/sevamoo/SOMPY
@@ -77,9 +78,22 @@ import warnings
 warnings.filterwarnings('ignore')
 
 plt.style.use('bmh')
+from matplotlib.colors import ListedColormap
+
+# Define the hex codes as a list
+colors_hex = ['#005C8A', '#1D3557', '#798777', '#B6D7A8', '#FFE88C',
+              '#FF9A76', '#FF4C29', '#C92C6D', '#6B0504']
+
+# Convert the hex codes to RGB tuples
+colors_rgb = [(int(color[1:3], 16)/255, int(color[3:5], 16)/255, int(color[5:7], 16)/255) for color in colors_hex]
+
+# Create a continuous colormap from the RGB tuples
+cmap1 = LinearSegmentedColormap.from_list('Picasso', colors_rgb, N=256)
+
+colors = ["#3F51B5", "#003153", "#0047AB", "#40826D", "#50C878", "#FFEA00", "#CC7722", "#E34234", "#E30022", "#D68A59", "#8A360F", "#826644", "#5C6BC0", "#002D62", "#0056B3", "#529987", "#66D98B", "#FFED47", "#E69C53", "#F2552C", "#EB4D55", "#E6A875", "#9F5A33", "#9C7C5B", "#2E37FE", "#76D7EA", "#007BA7", "#2E8B57", "#ADDFAD", "#FFFF31"]
 
 color4 = ['#3182bd','#6baed6','#9ecae1','#e6550d','#fd8d3c','#fdd0a2','#31a354','#a1d99b', '#c7e9c0', '#756bb1', '#bcbddc', '#dadaeb', '#969696', '#bdbdbd','#d9d9d9']
-custom_cmap = LinearSegmentedColormap.from_list("custom_theme", color4)
+custom_cmap = LinearSegmentedColormap.from_list("custom_theme", colors)
 ```
 
 ***
@@ -164,22 +178,31 @@ redshifts3, o3lum3,o3corr3, bpt13,bpt23, rml503, rmu3, con3, d4n3,hda3, vdisp3 =
 ```
 
 ```{code-cell} ipython3
+print(np.min(redshifts3),np.max(redshifts3))
+```
+
+```{code-cell} ipython3
 plt.figure(figsize=(12,5))
-markersize=50
-mapper = umap.UMAP(n_neighbors=50,min_dist=0.9,metric='manhattan',random_state=5).fit(clean_data)
+markersize=20
+#mapper = umap.UMAP(n_neighbors=100,min_dist=0.99,metric='manhattan',random_state=18).fit(clean_data)
 
 ax1 = plt.subplot(1,2,1)
 ax1.set_title(r'mean brightness',size=20)
-cf = ax1.scatter(mapper.embedding_[:,0],mapper.embedding_[:,1],s=markersize,c=np.log10(np.nansum(average_arr1,axis=0)),edgecolor='gray')
+#cf = ax1.scatter(mapper.embedding_[:,0],mapper.embedding_[:,1],s=markersize,c=np.log10(np.nansum(average_arr1,axis=0)),edgecolor='k',cmap='cividis')
+thiscolor=np.log10(np.nansum(average_arr1,axis=0))
+u = (thiscolor<2.) & (thiscolor>=0.)
+cf = ax1.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap='cividis')
 plt.axis('off')
 divider = make_axes_locatable(ax1)
 cax = divider.append_axes("right", size="5%", pad=0.05)
 plt.colorbar(cf,cax=cax)
 
-
+print(np.shape(fvar_arr1))
 ax0 = plt.subplot(1,2,2)
 ax0.set_title(r'mean fractional variation',size=20)
-cf = ax0.scatter(mapper.embedding_[:,0],mapper.embedding_[:,1],s=markersize,c=stretch_small_values_arctan(np.nansum(fvar_arr1,axis=0),factor=3),edgecolor='gray')
+thiscolor=stretch_small_values_arctan(np.nansum(fvar_arr1,axis=0)/np.count_nonzero(~np.isnan(fvar_arr1), axis=0),factor=30)
+u = (thiscolor<2.0) & (thiscolor>=0.)
+cf = ax0.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap='cividis')
 plt.axis('off')
 divider = make_axes_locatable(ax0)
 cax = divider.append_axes("right", size="5%", pad=0.05)
@@ -189,95 +212,240 @@ plt.tight_layout()
 ```
 
 ```{code-cell} ipython3
-plt.figure(figsize=(12,4))
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+plt.figure(figsize=(12,5),facecolor='black')
 plt.subplot(1,2,1)
 thiscolor=o3lum3
-u = (thiscolor<9) & (thiscolor>3)
-plt.title('OIII Luminosity')
-plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=20,c = thiscolor[u],edgecolor='gray')
+u = (thiscolor<9) & (thiscolor>4)
+plt.title('OIII Luminosity',color='w')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=8,c = thiscolor[u],edgecolor='k',cmap=cmap1)
 plt.axis('off')
-plt.colorbar()
+divider = make_axes_locatable(plt.gca())
+cax = divider.append_axes("right", size="5%", pad=0.05)
+cbar = plt.colorbar(cax=cax)
+cbar.ax.yaxis.set_tick_params(color='white')
+o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
 
 plt.subplot(1,2,2)
 thiscolor=o3corr3
-u = (thiscolor<10) & (thiscolor>3)
-plt.title('OIII Luminosity corrected')
-plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=20,c = thiscolor[u],edgecolor='gray')
+u = (thiscolor<9) & (thiscolor>4)
+plt.title('OIII Luminosity corrected',color='w')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=8,c = thiscolor[u],edgecolors='k',cmap=cmap1)
 plt.axis('off')
-plt.colorbar()
+divider = make_axes_locatable(plt.gca())
+cax = divider.append_axes("right", size="5%", pad=0.05)
+cbar = plt.colorbar(cax=cax)
+cbar.ax.yaxis.set_tick_params(color='white')
+o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
 ```
 
 ```{code-cell} ipython3
-plt.figure(figsize=(12,4))
+plt.figure(figsize=(12,5),facecolor='black')
 plt.subplot(1,2,1)
 thiscolor=bpt13
 u = (thiscolor<1.5) & (thiscolor>-1)
-plt.title('BPT1')
-plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=20,c = thiscolor[u],edgecolor='gray')
+plt.title('BPT1',color='w')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=8,c = thiscolor[u],edgecolors='k',cmap=cmap1)
 plt.axis('off')
-plt.colorbar()
+divider = make_axes_locatable(plt.gca())
+cax = divider.append_axes("right", size="5%", pad=0.05)
+cbar = plt.colorbar(cax=cax)
+cbar.ax.yaxis.set_tick_params(color='white')
+o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
 
 plt.subplot(1,2,2)
 thiscolor=bpt23
-u = (thiscolor<1.) & (thiscolor>-1)
-plt.title('BPT2')
-plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=20,c = thiscolor[u],edgecolor='gray')
+u = (thiscolor<1.5) & (thiscolor>-1)
+plt.title('BPT2',color='w')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=8,c = thiscolor[u],edgecolors='k',cmap=cmap1)
 plt.axis('off')
-plt.colorbar()
+divider = make_axes_locatable(plt.gca())
+cax = divider.append_axes("right", size="5%", pad=0.05)
+cbar = plt.colorbar(cax=cax)
+cbar.ax.yaxis.set_tick_params(color='white')
+o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
 ```
 
 ```{code-cell} ipython3
-plt.figure(figsize=(16,4))
+plt.figure(figsize=(20,4))
+
+ykewley = [0.61/(x - 0.47) + 1.19 if x < 0.47 else -3 for x in bpt23]
+ykauffmann = [0.61/(x - 0.05) + 1.3 if x < 0.05 else -3 for x in bpt23]
+
+usf = (bpt13<ykauffmann)&(bpt13>-2)
+ucomp = (bpt13<=ykewley)&(bpt13>ykauffmann)
+uagn = (bpt13>=ykewley)&(bpt13<=2)
+
+plt.subplot(1,4,1)
+x = np.linspace(-1,0.46,10)
+ykewley = 0.61/(x - 0.47) + 1.19
+plt.plot(x,ykewley,'r--')
+x = np.linspace(-1,0.05,10)
+ykauffmann = 0.61/(x - 0.05) + 1.3
+plt.plot(x,ykauffmann,'r--')
+plt.scatter(bpt23[usf],bpt13[usf],c ='blue',marker='o')
+plt.scatter(bpt23[ucomp],bpt13[ucomp],c ='green',marker='o')
+plt.scatter(bpt23[uagn],bpt13[uagn],c ='purple',marker='o')
+plt.xlim([-1,1])
+plt.ylim([-1,1.5])
+plt.xlabel(r'$\log([\rm NII]\lambda 6584/\rm H\alpha)$',fontsize=14)
+plt.ylabel(r'$\log([\rm OIII]\lambda 5007/\rm H\beta)$',fontsize=14)
+
+
+plt.subplot(1,4,2)
+plt.title('almost SF')
+plt.scatter(mapper.embedding_[:,0],mapper.embedding_[:,1],s=8,c = 'gray',edgecolors='gray',alpha=0.5)
+plt.scatter(mapper.embedding_[usf,0],mapper.embedding_[usf,1],s=8,c = 'blue',edgecolors='k')
+plt.axis('off')
+
+plt.subplot(1,4,3)
+plt.title('Kauffmann')
+plt.scatter(mapper.embedding_[:,0],mapper.embedding_[:,1],s=8,c = 'gray',edgecolors='gray',alpha=0.5)
+plt.scatter(mapper.embedding_[ucomp,0],mapper.embedding_[ucomp,1],s=8,c = 'g',edgecolors='k')
+plt.axis('off')
+
+plt.subplot(1,4,4)
+plt.title('Kewley')
+plt.scatter(mapper.embedding_[:,0],mapper.embedding_[:,1],s=8,c = 'gray',edgecolors='gray',alpha=0.5)
+plt.scatter(mapper.embedding_[uagn,0],mapper.embedding_[uagn,1],s=8,c = 'purple',edgecolors='k')
+plt.axis('off')
+```
+
+```{code-cell} ipython3
+plt.figure(figsize=(8,8))
+
+x = np.linspace(-1,0.46,10)
+ykewley = 0.61/(x - 0.47) + 1.19
+plt.plot(x,ykewley,'r--')
+x = np.linspace(-1,0.05,10)
+ykauffmann = 0.61/(x - 0.05) + 1.3
+plt.plot(x,ykauffmann,'r--')
+thiscolor=d4n3
+u = (thiscolor<3) & (thiscolor>0)
+plt.scatter(bpt23[u],bpt13[u],c =thiscolor[u],marker='o')
+
+plt.xlim([-1,1])
+plt.ylim([-1,1.5])
+plt.xlabel(r'$\log([\rm NII]\lambda 6584/\rm H\alpha)$',fontsize=14)
+plt.ylabel(r'$\log([\rm OIII]\lambda 5007/\rm H\beta)$',fontsize=14)
+```
+
+```{code-cell} ipython3
+plt.figure(figsize=(16,5),facecolor='black')
 plt.subplot(1,3,1)
 thiscolor=rml503
-u = (thiscolor<13) & (thiscolor>8)
-plt.title('Mass 50')
-plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=20,c = thiscolor[u],edgecolor='gray')
+u = (thiscolor<13) & (thiscolor>9)
+plt.title('Mass 50',color='w')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=8,c = thiscolor[u],edgecolors='k',cmap=cmap1)
 plt.axis('off')
-plt.colorbar()
+divider = make_axes_locatable(plt.gca())
+cax = divider.append_axes("right", size="5%", pad=0.05)
+cbar = plt.colorbar(cax=cax)
+cbar.ax.yaxis.set_tick_params(color='white')
+o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
 
 plt.subplot(1,3,2)
 thiscolor=rmu3
 u = (thiscolor<10) & (thiscolor>7)
-plt.title('Mass Surface density')
-plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=20,c = thiscolor[u],edgecolor='gray')
+plt.title('Mass Surface density',color='w')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=8,c = thiscolor[u],edgecolors='k',cmap=cmap1)
 plt.axis('off')
-plt.colorbar()
+divider = make_axes_locatable(plt.gca())
+cax = divider.append_axes("right", size="5%", pad=0.05)
+cbar = plt.colorbar(cax=cax)
+cbar.ax.yaxis.set_tick_params(color='white')
+o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
 
 plt.subplot(1,3,3)
 thiscolor=con3
 u = (thiscolor<4) & (thiscolor>1)
-plt.title('Concentration')
-plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=15,c = thiscolor[u],edgecolor='gray')
+plt.title('Concentration',color='w')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=8,c = thiscolor[u],edgecolors='k',cmap=cmap1)
 plt.axis('off')
-plt.colorbar()
+divider = make_axes_locatable(plt.gca())
+cax = divider.append_axes("right", size="5%", pad=0.05)
+cbar = plt.colorbar(cax=cax)
+cbar.ax.yaxis.set_tick_params(color='white')
+o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
 ```
 
 ```{code-cell} ipython3
-plt.figure(figsize=(16,4))
+plt.figure(figsize=(16,4),facecolor='black')
 plt.subplot(1,3,1)
 thiscolor=d4n3
 u = (thiscolor<2.5) & (thiscolor>1)
-plt.title('D4000?')
-plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=20,c = thiscolor[u],edgecolor='gray')
+plt.title('D4000?',color='w')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=8,c = thiscolor[u],edgecolors='k',cmap=cmap1)
 plt.axis('off')
-plt.colorbar()
+divider = make_axes_locatable(plt.gca())
+cax = divider.append_axes("right", size="5%", pad=0.05)
+cbar = plt.colorbar(cax=cax)
+cbar.ax.yaxis.set_tick_params(color='white')
+o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
 
 plt.subplot(1,3,2)
 thiscolor=hda3
 u = (thiscolor<10) & (thiscolor>-10)
-plt.title('HDA')
-plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=20,c = thiscolor[u],edgecolor='gray')
+plt.title('HDA',color='w')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=8,c = thiscolor[u],edgecolors='k',cmap=cmap1)
 plt.axis('off')
-plt.colorbar()
+divider = make_axes_locatable(plt.gca())
+cax = divider.append_axes("right", size="5%", pad=0.05)
+cbar = plt.colorbar(cax=cax)
+cbar.ax.yaxis.set_tick_params(color='white')
+o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
 
 plt.subplot(1,3,3)
 thiscolor=vdisp3
 u = (thiscolor<400) & (thiscolor>0)
-plt.title('Vdispersion')
-plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=15,c = thiscolor[u],edgecolor='gray')
+plt.title('Vdispersion',color='w')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=8,c = thiscolor[u],edgecolors='k',cmap=cmap1)
 plt.axis('off')
-plt.colorbar()
+divider = make_axes_locatable(plt.gca())
+cax = divider.append_axes("right", size="5%", pad=0.05)
+cbar = plt.colorbar(cax=cax)
+cbar.ax.yaxis.set_tick_params(color='white')
+o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
+```
+
+```{code-cell} ipython3
+plt.figure(figsize=(16,4),facecolor='black')
+plt.subplot(1,3,1)
+thiscolor=rml503
+u = (thiscolor<13) & (thiscolor>9)
+plt.title('Mass',color='w')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=8,c = thiscolor[u],edgecolors='k',cmap=cmap1)
+plt.axis('off')
+divider = make_axes_locatable(plt.gca())
+cax = divider.append_axes("right", size="5%", pad=0.05)
+cbar = plt.colorbar(cax=cax)
+cbar.ax.yaxis.set_tick_params(color='white')
+o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
+
+plt.subplot(1,3,2)
+thiscolor=d4n3
+u = (thiscolor<2.5) & (thiscolor>1)
+plt.title('D4000',color='w')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=8,c = thiscolor[u],edgecolors='k',cmap=cmap1)
+plt.axis('off')
+divider = make_axes_locatable(plt.gca())
+cax = divider.append_axes("right", size="5%", pad=0.05)
+cbar = plt.colorbar(cax=cax)
+cbar.ax.yaxis.set_tick_params(color='white')
+o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
+
+plt.subplot(1,3,3)
+thiscolor=vdisp3
+u = (thiscolor<400) & (thiscolor>0)
+plt.title('Vdispersion',color='w')
+plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=8,c = thiscolor[u],edgecolors='k',cmap=cmap1)
+plt.axis('off')
+divider = make_axes_locatable(plt.gca())
+cax = divider.append_axes("right", size="5%", pad=0.05)
+cbar = plt.colorbar(cax=cax)
+cbar.ax.yaxis.set_tick_params(color='white')
+o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
 ```
 
 ```{code-cell} ipython3

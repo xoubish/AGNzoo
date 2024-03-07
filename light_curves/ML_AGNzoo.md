@@ -13,7 +13,7 @@ kernelspec:
 
 # How do AGNs selected with different techniques compare?
 
-By the IPAC Science Platform Team, last edit: March 1st, 2024
+By the IPAC Science Platform Team, last edit: March 6th, 2024
 
 ***
 

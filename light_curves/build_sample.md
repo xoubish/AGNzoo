@@ -49,7 +49,7 @@ zmax = 1.0
 agnlabels = ['SDSS_QSO', 'WISE_Variable','Optical_Variable','Galex_Variable',
              'Turn-on', 'Turn-off',
              'SPIDER', 'SPIDER_AGN','SPIDER_BL','SPIDER_QSOBL','SPIDER_AGNBL', 
-             'TDE']
+             'TDE','BOSS SF']
 
 # Create an empty pandas DataFrame
 columns = ['SkyCoord', 'redshift'] + agnlabels
@@ -446,6 +446,20 @@ print('Fermi Blazar added sources:',str(r))
 #r90.columns
 ```
 
+# BOSS SF in BPT low z
+
+```python
+#large! and not in line with previous, its stand alone
+a = fits.getdata('data/portsmouth_emlinekin_full-DR12-boss.fits')
+u = (a['REDSHIFT']>=0.00015) &(a['REDSHIFT']<=0.39457)&(a['BPT']=='Star Forming')
+ra,dec,zz = a['RA'][u],a['DEC'][u],a['REDSHIFT'][u]
+sflab = np.full(ra.shape, 'BOSS SF')
+update_or_append_multiple(ra,dec,zz, sflab)
+# Assuming `df` is your pandas DataFrame
+#df.to_csv('data/BOSS-SF.csv', index=False)
+
+```
+
 # Save dataframe 
 
 ```python
@@ -464,7 +478,7 @@ import astropy.units as u
 import numpy as np
 
 # Read the CSV file into a DataFrame
-df = pd.read_csv('data/AGNsample_26Feb24.csv')
+df = pd.read_csv('data/sample.csv')
 
 # Define a function to parse the strings into SkyCoord objects
 def parse_skycoord_string(s):
@@ -494,7 +508,7 @@ df.drop('SkyCoord_obj', axis=1, inplace=True)
 agnlabels = ['SDSS_QSO', 'WISE_Variable','Optical_Variable','Galex_Variable',
              'Turn-on', 'Turn-off',
              'SPIDER', 'SPIDER_AGN','SPIDER_BL','SPIDER_QSOBL','SPIDER_AGNBL', 
-             'TDE']
+             'TDE','BOSS SF']
 # Calculate the sum of label columns for each row
 # Calculate the bitwise sum
 bitwise_sum = np.zeros(len(df), dtype=int)
@@ -507,9 +521,17 @@ df['objectid'] = df.index
 ```
 
 ```python
+#sampled_df = df.sample(n=10000, random_state=42)
+#selected_columns_df = sampled_df[['objectid', 'coord.ra', 'coord.dec', 'label']]
+
+t = Table.from_pandas(df)
+t.write('data/sample.ecsv', format='ascii.ecsv', overwrite=True)
+```
+
+```python
 selected_columns_df = df[['objectid', 'coord.ra', 'coord.dec', 'label']]
 t = Table.from_pandas(selected_columns_df)
-t.write('data/agnsample_feb26.ecsv', format='ascii.ecsv', overwrite=True)
+t.write('data/BOSS_Mar5.ecsv', format='ascii.ecsv', overwrite=True)
 
 ```
 
