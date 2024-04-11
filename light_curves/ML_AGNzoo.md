@@ -13,7 +13,7 @@ kernelspec:
 
 # How do AGNs selected with different techniques compare?
 
-By the IPAC Science Platform Team, last edit: March 6th, 2024
+By the IPAC Science Platform Team, last edit: April 11th, 2024
 
 ***
 
@@ -76,7 +76,7 @@ logger.setLevel(logging.ERROR)
 import warnings
 warnings.filterwarnings('ignore')
 
-plt.style.use('bmh')
+#plt.style.use('bmh')
 
 colors = ["#3F51B5", "#003153", "#0047AB", "#40826D", "#50C878", "#FFEA00", "#CC7722", "#E34234", "#E30022", "#D68A59", "#8A360F", "#826644", "#5C6BC0", "#002D62", "#0056B3", "#529987", "#66D98B", "#FFED47", "#E69C53", "#F2552C", "#EB4D55", "#E6A875", "#9F5A33", "#9C7C5B", "#2E37FE", "#76D7EA", "#007BA7", "#2E8B57", "#ADDFAD", "#FFFF31"]
 colors2 = [
@@ -140,22 +140,164 @@ redshifts = samp['redshift']#[objids]
 #rows_to_drop_indices = np.random.choice(df4.index, size=int(len(df4) * 1), replace=False)
 # Drop these rows
 #df_lc = df3.drop(rows_to_drop_indices)
-```
-
-```{code-cell} ipython3
 df_lc
 ```
 
 ```{code-cell} ipython3
-from plot_functions import create_figures
-_ = create_figures(df_lc = df_lc, # either df_lc (serial call) or parallel_df_lc (parallel call)
-                   show_nbr_figures = 1,  # how many plots do you actually want to see?
-                   save_output = True ,  # should the resulting plots be saved?
+from plot_functions import create_figure
+grouped = list(df_lc.groupby('objectid'))
+
+ind = 2005
+objectid, singleobj_df = grouped[ind]
+print(samp.iloc[objectid])
+_ = create_figure(df_lc = df_lc, 
+                   index = ind,  
+                   save_output = False ,  # should the resulting plots be saved?
                   )
 ```
 
 ```{code-cell} ipython3
-bands_inlc = ['W1']
+
+x_ztf = np.linspace(0, 1850, 175)  # For ZTF
+kernel = RationalQuadratic(length_scale=1, alpha=0.1)
+colors = ['#3182bd','#6baed6','#9ecae1','#e6550d','#fd8d3c','#fdd0a2','#31a354','#a1d99b', '#c7e9c0', '#756bb1', '#bcbddc', '#dadaeb', '#969696', '#bdbdbd','#d9d9d9']
+
+
+for keepindex, obj in tqdm(enumerate([objectid])):    
+    singleobj = df_lc.loc[obj, :, :, :]  # Extract data for the single object
+    label = singleobj.index.unique('label')  # Get the label of the object
+    bands = singleobj.loc[label[0], :, :].index.get_level_values('band')[:].unique()  # Extract bands
+
+plt.figure(figsize=(10, 6))  # Set up plot if within numplots limit
+plt.subplot(2,1,1)
+added_labels = {}
+
+for l, band in enumerate(['zg','zr']):
+    band_lc = singleobj.loc[label[0], band, :]  # Extract light curve data for the band
+    band_lc_clean = band_lc[band_lc.index.get_level_values('time') < 65000]
+    x, y, dy = np.array(band_lc_clean.index.get_level_values('time') - band_lc_clean.index.get_level_values('time')[0]), np.array(band_lc_clean.flux), np.array(band_lc_clean.err)
+    # Sort data based on time
+    x2, y2, dy2 = x[np.argsort(x)], y[np.argsort(x)], dy[np.argsort(x)]
+
+    # Check if there are enough points for interpolation
+    if (len(x2) > 10) and not np.isnan(y2).any():
+        n = np.sum(x2 == 0)
+        for b in range(1, n):
+            x2[::b + 1] = x2[::b + 1] + 1 * 0.001
+
+        # Interpolate the data
+        f = interpolate.interp1d(x2, y2, kind='previous', fill_value="extrapolate")
+        df = interpolate.interp1d(x2, dy2, kind='previous', fill_value="extrapolate")
+        l = 'nearest interpolation'
+        if l not in added_labels:
+            gline, = plt.plot(x_ztf, f(x_ztf), '--', label= l,color = '#92a8d1',alpha=1)
+            added_labels[l] = True            
+        else:
+            gline, = plt.plot(x_ztf, f(x_ztf), '--',color = "#3F51B5",alpha=1)
+
+        gcolor=gline.get_color()
+        l = 'observed data'
+        if l not in added_labels:
+            plt.errorbar(x2, y2, dy2, capsize=1.0, marker='.',label=l, linestyle='',alpha=0.5,color='#92a8d1')
+            added_labels[l] = True
+        else:
+            plt.errorbar(x2, y2, dy2, capsize=1.0, marker='.', linestyle='',alpha=0.5,color="#3F51B5")
+
+        X = x2.reshape(-1, 1)        
+        x_ztf = np.linspace(0,1850,175).reshape(-1, 1) # X array for interpolation
+        gp = GaussianProcessRegressor(kernel=kernel, alpha=dy2**2)
+        gp.fit(X, y2)
+        y_pred,sigma = gp.predict(x_ztf, return_std=True)
+        l = 'Gaussian Process Reg.'
+        if l not in added_labels:
+            gpline, = plt.plot(x_ztf,y_pred,'-',label=l,color = '#92a8d1')
+            added_labels[l] = True
+        else:
+            gpline, = plt.plot(x_ztf,y_pred,'-',color = "#3F51B5")  
+        
+        gcolor= gpline.get_color()
+        plt.fill_between(x_ztf.flatten(), y_pred - 1.96 * sigma,y_pred + 1.96 * sigma, alpha=0.2, color=gcolor)
+
+plt.grid()
+plt.text(800,0.37,'ZTF g,r',size=15)
+
+#plt.xlabel(r'$\rm time(day)$',size=15)
+plt.ylabel(r'$\rm Flux(mJy)$',size=15)
+plt.legend(loc=3)
+plt.subplot(2,1,2)
+x_ztf = np.linspace(0, 4000, 175)  # For ZTF
+
+
+added_labels = {}
+
+for l, band in enumerate(['W1','W2']):
+    band_lc = singleobj.loc[label[0], band, :]  # Extract light curve data for the band
+    band_lc_clean = band_lc[band_lc.index.get_level_values('time') < 65000]
+    x, y, dy = np.array(band_lc_clean.index.get_level_values('time') - band_lc_clean.index.get_level_values('time')[0]), np.array(band_lc_clean.flux), np.array(band_lc_clean.err)
+    # Sort data based on time
+    x2, y2, dy2 = x[np.argsort(x)], y[np.argsort(x)], dy[np.argsort(x)]
+
+    # Check if there are enough points for interpolation
+    if (len(x2) > 10) and not np.isnan(y2).any():
+        n = np.sum(x2 == 0)
+        for b in range(1, n):
+            x2[::b + 1] = x2[::b + 1] + 1 * 0.001
+
+        # Interpolate the data
+        f = interpolate.interp1d(x2, y2, kind='previous', fill_value="extrapolate")
+        df = interpolate.interp1d(x2, dy2, kind='previous', fill_value="extrapolate")
+        l = 'nearest interpolation'
+        if l not in added_labels:
+            gline, = plt.plot(x_ztf, f(x_ztf), '--', label= l,color = '#30D5C8',alpha=1)
+            added_labels[l] = True            
+        else:
+            gline, = plt.plot(x_ztf, f(x_ztf), '--',color = '#7fcdbb',alpha=1)
+
+        gcolor=gline.get_color()
+        l = 'observed data'
+        if l not in added_labels:
+            plt.errorbar(x2, y2, dy2, capsize=1.0, marker='.',label=l, linestyle='',alpha=0.8,color=colors[0])
+            added_labels[l] = True
+        else:
+            plt.errorbar(x2, y2, dy2, capsize=1.0, marker='.', linestyle='',alpha=0.8,color=colors[0])
+
+        X = x2.reshape(-1, 1)        
+        x_ztf = np.linspace(0,4000,175).reshape(-1, 1) # X array for interpolation
+        gp = GaussianProcessRegressor(kernel=kernel, alpha=dy2**2)
+        gp.fit(X, y2)
+        y_pred,sigma = gp.predict(x_ztf, return_std=True)
+        l = 'Gaussian Process Reg.'
+        if l not in added_labels:
+            gpline, = plt.plot(x_ztf,y_pred,'-',label=l,color = '#30D5C8')
+            added_labels[l] = True
+        else:
+            gpline, = plt.plot(x_ztf,y_pred,'-',color = '#7fcdbb')
+
+        gcolor= gpline.get_color()
+        plt.fill_between(x_ztf.flatten(), y_pred - 1.96 * sigma,y_pred + 1.96 * sigma, alpha=0.2, color=gcolor)
+plt.text(2000,1.3,'WISE W1,W2',size=15)
+plt.grid()
+#plt.xlim([-10,1880])
+plt.xlabel(r'$\rm time(day)$',size=15)
+plt.ylabel(r'$\rm Flux(mJy)$',size=15)
+
+plt.legend(loc=2)
+plt.tight_layout()
+plt.savefig('output/unify_lc.png')
+```
+
++++ {"jp-MarkdownHeadingCollapsed": true}
+
+## bands_inlc = ['zr','zi','zg']
+objects,dobjects,flabels,keeps,zlist = unify_lc(singleobj_df, redshifts,bands_inlc,xres=160,numplots=1,low_limit_size=50) #nearest neightbor linear interpolation
+objects,dobjects,flabels,keeps,zlist = unify_lc_gp(singleobj_df,redshifts,bands_inlc,xres=160,numplots=1,low_limit_size=10) #Gaussian process unification
+
+bands_inlc = ['W1','W2']
+objects,dobjects,flabels,keeps,zlist = unify_lc(singleobj_df, redshifts,bands_inlc,xres=160,numplots=1,low_limit_size=10) #nearest neightbor linear interpolation
+objects,dobjects,flabels,keeps,zlist = unify_lc_gp(singleobj_df,redshifts,bands_inlc,xres=160,numplots=1,low_limit_size=10) #Gaussian process unification
+
+```{code-cell} ipython3
+bands_inlc = ['BP','G','RP','g','r','i','z','y','zg','zr','zi','W1','W2']
 numobjs = len(df_lc.index.get_level_values('objectid')[:].unique())
 #objects,dobjects,flabels,keeps,zlist = unify_lc(df_lc, redshifts,bands_inlc,xres=160,numplots=3,low_limit_size=50) #nearest neightbor linear interpolation
 #objects,dobjects,flabels,keeps,zlist = unify_lc_gp(df_lc,redshifts,bands_inlc,xres=160,numplots=5,low_limit_size=10) #Gaussian process unification
@@ -1003,7 +1145,7 @@ bottom_ax.set_xticks(range(len(tiklabels)),tiklabels,fontsize=15,rotation=90)
 bottom_ax.set_ylabel(r'$\rm number\ of\ lightcurves$',size=15)
 plt.tight_layout()
 
-plt.savefig('output/sample.png')
+#plt.savefig('output/sample.png')
 ```
 
 ```{code-cell} ipython3

@@ -96,7 +96,7 @@ def unify_lc(df_lc, redshifts, bands_inlc=['zr', 'zi', 'zg'], xres=320, numplots
     '''
 
     # Creating linearly spaced arrays for interpolation for different instruments
-    x_ztf = np.linspace(0, 1600, xres)  # For ZTF
+    x_ztf = np.linspace(0, 1750, xres)  # For ZTF
     x_wise = np.linspace(0, 4000, xres)  # For WISE
 
     # Extract unique object IDs from the DataFrame
@@ -164,24 +164,24 @@ def unify_lc(df_lc, redshifts, bands_inlc=['zr', 'zi', 'zg'], xres=320, numplots
                         obj_newy[l] = f(x_ztf)#/f(x_ztf).max()
                         obj_newdy[l] = df(x_ztf)#/f(x_ztf).max()
 
-                else: #don't keep objects which have less than x datapoints in any keeping bands
-                    keepobj = 0
-
-            if printcounter<numplots:
+                else:
+                    keepobj=0
+                    break
+            if (printcounter<numplots):
+                #plt.title('Object '+str(obj))#+' from '+label[0]+' et al.')
                 plt.xlabel(r'$\rm Time(MJD)$',size=15)
                 plt.ylabel(r'$\rm Flux(mJy)$',size=15)
                 plt.legend()
                 #plt.show()
-                plt.savefig('output/interp_ln_lc'+str(printcounter)+'.png')
+                plt.savefig('output/interp_gp_lc'+str(printcounter)+'.png')
                 printcounter+=1
-
-
         if keepobj and not np.isnan(obj_newy).any():
             objects.append(obj_newy)
             dobjects.append(obj_newdy)
             flabels.append(label[0])
             keeps.append(keepindex)
             zlist.append(redshift)
+
     return np.array(objects),np.array(dobjects),flabels,keeps,np.array(zlist)
 
 
@@ -196,7 +196,7 @@ def unify_lc_gp(df_lc,redshifts,bands_inlc=['zr','zi','zg'],xres=320,numplots=1,
     - numplots: Number of plots to display (default: 1).
     - low_limit_size: Minimum number of data points required in a band (default: 5).
     '''
-    x_ztf = np.linspace(0,1600,xres).reshape(-1, 1) # X array for interpolation
+    x_ztf = np.linspace(0,1750,xres).reshape(-1, 1) # X array for interpolation
     x_wise = np.linspace(0,4000,xres).reshape(-1, 1) # X array for interpolation
     objids = df_lc.index.get_level_values('objectid')[:].unique()
 

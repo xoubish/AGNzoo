@@ -165,7 +165,6 @@ np.savez('data/kauffw2',data=clean_data,fvar_arr1 = fvar_arr1, average_arr1 = av
 ```
 
 ```{raw-cell}
-
 df_lc = pd.read_parquet('data/df_lc_boss_sf.parquet')
 
 samp = pd.read_csv('data/BOSS-SF.csv')
@@ -229,7 +228,6 @@ average_arr1 = average_arr11[:,u]
 redshifts3 = redshifts31[u]
 bpt13 = bpt131[u]
 bpt23 = bpt231[u]
-
 ```
 
 ```{code-cell} ipython3

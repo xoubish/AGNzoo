@@ -13,15 +13,108 @@ ICECUBE_BAND = "IceCube"  # "fluxes" are just events (= limits on plot)
 ZTF_BANDS = ["zg", "zr", "zi"]  # will be plotted in "B" zoom-in for better visibility
 # List all other bands
 OTHER_BANDS = ["F814W",  # HCV
-               "FERMIGTRIG", "SAXGRBMGRB",  # HEASARC
                "G", "BP", "RP",  # Gaia
                "panstarrs g", "panstarrs i", "panstarrs r", "panstarrs y", "panstarrs z",  # Pan-STARRS
-               "W1", "W2"]  # WISE
+               "W1", "W2",# WISE
+              "FERMIGTRIG", "SAXGRBMGRB",  # HEASARC
+              ] 
 
 # Set a color for each band.
 # Create a generator to yield colors (this will be useful if we need to plot bands not listed above).
-COLORS = (color for color in mpl.colormaps["tab20"].colors + mpl.colormaps["tab20b"].colors)
+cs=["#6897bb",  # Viridian Green
+    "#92a8d1",  # Soft blue
+    "#3F51B5",  # Ultramarine Blue
+    "#003153",  # Prussian Blue
+    "#0047AB",  # Cobalt Blue
+    "#355c7d",  # Dark blue gray
+    "#45b8ac",  # Maximum blue green
+    "#50C878",  # Emerald Green
+    "#FFEA00",  # Chrome Yellow
+    "#FFCC33",  # Yellow Ochre
+    "#FFFACD",  # Vermilion
+    "#FFDAB9",  # Cadmium Red
+    "#FC6C85",  # Raw Sienna
+    "#FF91A4",  # Burnt Sienna
+    "#FF7F50",  # Raw Umber
+    "#E95D22",  # Pastel pink
+    "#30D5C8",  # Tea green
+    "#7fcdbb",  # Middle green
+    "#f7786b",  # Blush
+    "#6b5b95",  # Amethyst
+    "#d64161",  # Ruby red
+    "#ff7b25",  # Flame
+    "#edc951",  # Saffron
+    "#feb236",  # Dandelion
+    "#d5f4e6",  # Honeydew
+    "#9b2335",  # Garnet
+    "#7bcbc4",  # Pearl Aqua
+    "#f67280",  # Light Carmine Pink
+    "#c06c84",  # Mauve
+    "#6897bb",  # Blue-gray
+
+]
+COLORS = (color for color in cs)
 BAND_COLORS = {band: next(COLORS) for band in [ICECUBE_BAND] + ZTF_BANDS + ELECTRON_BANDS + OTHER_BANDS}
+
+def create_figure(df_lc, index, save_output):
+    '''
+    Creates a figure of the lightcurve for a specific object in df_lc, identified by index.
+    
+    Parameters
+    ----------
+    df_lc : DataFrame
+        DataFrame containing lightcurve objects from which to create the lightcurve figure.
+        
+    index : int
+        Index of the object to plot. This is not the object ID but the position in the list of grouped objects.
+        
+    save_output: bool
+        Whether to save the lightcurve figure. If saved, it will be in the "output" directory.
+        
+    
+    Returns
+    -------
+    Saves the figure in the output directory if save_output is True.
+    Shows the figure inline if save_output is False.
+    
+    '''
+    
+    grouped = list(df_lc.groupby('objectid'))
+    if index < 0 or index >= len(grouped):
+        print(f"Index {index} is out of bounds. No figure created.")
+        return False
+    
+    objectid, singleobj_df = grouped[index]
+    
+    # Set up for plotting.
+    fig, axes = plt.subplot_mosaic(mosaic=[["A"],["A"],["B"]] , figsize=(10,6))
+
+    # Iterate over bands and plot light curves.
+    band_groups = _clean_lightcurves(singleobj_df).groupby('band')
+    max_fluxes = band_groups.flux.max()  # max flux per band
+    for band, band_df in band_groups:
+        if band == ICECUBE_BAND:
+            continue
+        _plot_lightcurve(band, band_df, axes, max_fluxes)
+    if ICECUBE_BAND in band_groups.groups:
+        _plot_lightcurve(ICECUBE_BAND, band_groups.get_group(ICECUBE_BAND), axes)
+
+    # Format the figure.
+    ztf_df = band_groups.filter(lambda band_df: band_df.name in ZTF_BANDS)
+    _format_axes(axes, ztf_time_min_max=(ztf_df.time.min(), ztf_df.time.max()))
+    plt.subplots_adjust(hspace=0.2 , wspace=0.3)
+    axes["A"].legend(loc=4)
+
+    # Save or show the figure.
+    if save_output:
+        savename = os.path.join("output" , f"lightcurve_{objectid}.png")
+        plt.savefig(savename, bbox_inches="tight")
+        print(f"Figure saved as {savename}")
+    else:
+        plt.show()
+
+    plt.close()
+    return True
 
 
 def create_figures(df_lc, show_nbr_figures, save_output):
@@ -62,7 +155,7 @@ def create_figures(df_lc, show_nbr_figures, save_output):
     for cc, (objectid, singleobj_df) in enumerate(df_lc.groupby('objectid')):
         # Set up for plotting. We use the "mosaic" method so we can plot
         # the ZTF data in a subplot for better visibility.
-        fig, axes = plt.subplot_mosaic(mosaic=[["A"],["A"],["B"]] , figsize=(10,8))
+        fig, axes = plt.subplot_mosaic(mosaic=[["A"],["A"],["B"]] , figsize=(10,6))
 
         # Iterate over bands and plot light curves.
         # IceCube needs to be done last so that we know the y-axis limits.
@@ -79,8 +172,8 @@ def create_figures(df_lc, show_nbr_figures, save_output):
         # Get the ZTF min/max times for the zoom in (will be NaN if there are no ZTF bands).
         ztf_df = band_groups.filter(lambda band_df: band_df.name in ZTF_BANDS)
         _format_axes(axes, ztf_time_min_max=(ztf_df.time.min(), ztf_df.time.max()))
-        plt.subplots_adjust(hspace=0.3 , wspace=0.3)
-        axes["A"].legend()
+        plt.subplots_adjust(hspace=0.2 , wspace=0.3)
+        axes["A"].legend(loc=0)
 
         # Save, show, and/or close the figure.
         if save_output:
@@ -232,12 +325,12 @@ def _format_axes(axes, ztf_time_min_max):
         axes["A"].set_xlabel("Time(MJD)")
 
     ## Set axes ticks and grids
-    axes["A"].grid(linestyle=":", color="lightgray", linewidth=1)
+    axes["A"].grid(linestyle=":", color="gray", linewidth=1)
     axes["A"].minorticks_on()
     axes["A"].tick_params(axis="x", which="minor", bottom=True)
     axes["A"].tick_params(axis="both", which="major", direction="in", length=6, width=1)
     axes["A"].tick_params(axis="both", which="minor", direction="in", length=3, width=1)
-    axes["B"].grid(linestyle=":", color="lightgray", linewidth=1)
+    axes["B"].grid(linestyle=":", color="gray", linewidth=1)
     axes["B"].minorticks_on()
     axes["B"].tick_params(axis="x", which="minor", bottom=True)
     axes["B"].tick_params(axis="both", which="major", direction="in", length=6, width=1)
