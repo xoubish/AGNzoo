@@ -341,6 +341,8 @@ def combine_bands(objects,bands):
         obj = []
         for b in range(len(bands)):
             obj = np.append(obj,ob[b],axis=0)
+            #obj = np.append(obj,ob[b]/np.mean(ob[b]),axis=0) # too flat
+            
         dat.append(obj)
     return np.array(dat)
 

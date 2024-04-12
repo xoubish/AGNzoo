@@ -125,7 +125,7 @@ redshifts, o3lum,o3corr, bpt1,bpt2, rml50, rmu, con, d4n,hda, vdisp = np.array(r
 df_lc = pd.read_parquet('data/df_lc_kauffmann.parquet')
 ```
 
-```{code-cell} ipython3
+```{raw-cell}
 bands_inlc = ['zg','zr','zi','W1','W2']
 numobjs = len(df_lc.index.get_level_values('objectid')[:].unique())
 #objects,dobjects,flabels,keeps,zlist = unify_lc(df_lc, redshifts,bands_inlc,xres=160,numplots=3,low_limit_size=50) #nearest neightbor linear interpolation
@@ -168,25 +168,97 @@ redshifts2, o3lum2,o3corr2, bpt12,bpt22, rml502, rmu2, con2, d4n2,hda2, vdisp2 =
 redshifts3, o3lum3,o3corr3, bpt13,bpt23, rml503, rmu3, con3, d4n3,hda3, vdisp3 = redshifts2[~nan_rows], o3lum2[~nan_rows],o3corr2[~nan_rows], bpt12[~nan_rows],bpt22[~nan_rows], rml502[~nan_rows], rmu2[~nan_rows], con2[~nan_rows], d4n2[~nan_rows],hda2[~nan_rows], vdisp2[~nan_rows]
 
 fvar_arr1,average_arr1 = fvar_arr[:,~nan_rows],average_arr[:,~nan_rows]
-np.savez('data/kauffit_all',data=clean_data,fvar_arr1 = fvar_arr1, average_arr1 = average_arr1,redshifts3=redshifts3,o3lum3=o3lum3,o3corr3=o3corr3,bpt13=bpt13,bpt23=bpt23,rml503=rml503,rmu3=rmu3,con3=con3,d4n3=d4n3,hda3=hda3,vdisp3=vdisp3)
+np.savez('data/kauffit_all2',data=clean_data,fvar_arr1 = fvar_arr1, average_arr1 = average_arr1,redshifts3=redshifts3,o3lum3=o3lum3,o3corr3=o3corr3,bpt13=bpt13,bpt23=bpt23,rml503=rml503,rmu3=rmu3,con3=con3,d4n3=d4n3,hda3=hda3,vdisp3=vdisp3)
 ```
 
 ```{code-cell} ipython3
 d = np.load('data/kauffit_all.npz',allow_pickle=True)
 clean_data = d['data']
 fvar_arr1,average_arr1 = d['fvar_arr1'],d['average_arr1']
-redshifts3, o3lum3,o3corr3, bpt13,bpt23, rml503, rmu3, con3, d4n3,hda3, vdisp3 = d['redshifts3'], d['o3lum3'],d['o3corr3'], d['bpt13'],d['bpt23'], d['rml503'], d['rmu3'], d['con3'],d['d4n3'],d['hda3'], d['vdisp3']
-                                                                                   
+redshifts3, o3lum3,o3corr3, bpt13,bpt23, rml503, rmu3, con3, d4n3,hda3, vdisp3 = d['redshifts3'], d['o3lum3'],d['o3corr3'], d['bpt13'],d['bpt23'], d['rml503'], d['rmu3'], d['con3'],d['d4n3'],d['hda3'], d['vdisp3']                                                                                   
+print(np.min(redshifts3),np.mean(redshifts3),len(redshifts3))
 ```
 
 ```{code-cell} ipython3
-print(np.min(redshifts3),np.max(redshifts3))
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+plt.figure(figsize=(10,6),facecolor='white')
+cmap1 = 'viridis'
+markersize=15
+#mapper = umap.UMAP(n_neighbors=100,min_dist=0.99,metric='manhattan',random_state=2).fit(clean_data)
+
+ax1 = plt.subplot(2,3,1)
+ax1.set_title(r'$\rm Mean\ brightness$')
+thiscolor=np.log10(np.nansum(average_arr1,axis=0))
+u = (thiscolor<2) & (thiscolor>=0)
+cf = ax1.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
+plt.axis('off')
+divider = make_axes_locatable(ax1)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+plt.colorbar(cf,cax=cax)
+
+ax0 = plt.subplot(2,3,2)
+ax0.set_title(r'$\rm Mean\ Fractional\ Variation$')
+thiscolor=stretch_small_values_arctan(np.nansum(fvar_arr1,axis=0)/np.count_nonzero(~np.isnan(fvar_arr1), axis=0),factor=30)
+u = (thiscolor<2.0) & (thiscolor>=0.)
+cf = ax0.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
+plt.axis('off')
+divider = make_axes_locatable(ax0)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+plt.colorbar(cf,cax=cax)
+
+ax0 = plt.subplot(2,3,3)
+
+thiscolor=rml503
+u = (thiscolor<12.5) & (thiscolor>9.5)
+ax0.set_title(r'$\rm Log (M_{* 50}/M_{\odot})$',color='k')
+cf = ax0.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
+plt.axis('off')
+divider = make_axes_locatable(ax0)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+plt.colorbar(cf,cax=cax)
+
+
+ax0 = plt.subplot(2,3,5)
+thiscolor=o3corr3
+u = (thiscolor<9) & (thiscolor>5.5)
+ax0.set_title(r'$\rm Log L[OIII] (L_{\odot})$',color='k')
+cf = ax0.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
+plt.axis('off')
+divider = make_axes_locatable(ax0)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+plt.colorbar(cf,cax=cax)
+
+ax0 = plt.subplot(2,3,6)
+thiscolor=hda3
+u = (thiscolor<10) & (thiscolor>-2)
+ax0.set_title(r'$\rm H\delta_{A}$',color='k')
+cf = ax0.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
+plt.axis('off')
+divider = make_axes_locatable(ax0)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+plt.colorbar(cf,cax=cax)
+
+ax0 = plt.subplot(2,3,4)
+
+thiscolor=d4n3
+u = (thiscolor<2.5) & (thiscolor>1)
+ax0.set_title(r'$\rm D_{n}4000$',color='k')
+cf = ax0.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
+plt.axis('off')
+divider = make_axes_locatable(ax0)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+plt.colorbar(cf,cax=cax)
+
+
+plt.tight_layout()
+plt.savefig('output/kauffmann-umap.png')
 ```
 
 ```{code-cell} ipython3
 plt.figure(figsize=(12,5))
 markersize=20
-#mapper = umap.UMAP(n_neighbors=100,min_dist=0.99,metric='manhattan',random_state=18).fit(clean_data)
+mapper = umap.UMAP(n_neighbors=100,min_dist=0.99,metric='manhattan',random_state=18).fit(clean_data)
 
 ax1 = plt.subplot(1,2,1)
 ax1.set_title(r'mean brightness',size=20)
@@ -216,30 +288,30 @@ plt.tight_layout()
 ```{code-cell} ipython3
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-plt.figure(figsize=(12,5),facecolor='black')
-plt.subplot(1,2,1)
+plt.figure(figsize=(12,5),facecolor='white')
+plt.subplot(1,3,1)
 thiscolor=o3lum3
-u = (thiscolor<9) & (thiscolor>4)
-plt.title('OIII Luminosity',color='w')
+u = (thiscolor<9) & (thiscolor>5)
+plt.title('OIII Luminosity',color='k')
 plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=8,c = thiscolor[u],edgecolor='k',cmap=cmap1)
 plt.axis('off')
 divider = make_axes_locatable(plt.gca())
 cax = divider.append_axes("right", size="5%", pad=0.05)
 cbar = plt.colorbar(cax=cax)
-cbar.ax.yaxis.set_tick_params(color='white')
-o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
+cbar.ax.yaxis.set_tick_params(color='k')
+o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='k')
 
 plt.subplot(1,2,2)
 thiscolor=o3corr3
-u = (thiscolor<9) & (thiscolor>4)
-plt.title('OIII Luminosity corrected',color='w')
+u = (thiscolor<9) & (thiscolor>5)
+plt.title('OIII Luminosity corrected',color='k')
 plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=8,c = thiscolor[u],edgecolors='k',cmap=cmap1)
 plt.axis('off')
 divider = make_axes_locatable(plt.gca())
 cax = divider.append_axes("right", size="5%", pad=0.05)
 cbar = plt.colorbar(cax=cax)
-cbar.ax.yaxis.set_tick_params(color='white')
-o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
+cbar.ax.yaxis.set_tick_params(color='k')
+o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='k')
 ```
 
 ```{code-cell} ipython3
@@ -415,7 +487,7 @@ o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
 plt.figure(figsize=(16,4),facecolor='black')
 plt.subplot(1,3,1)
 thiscolor=rml503
-u = (thiscolor<13) & (thiscolor>9)
+u = (thiscolor<13) & (thiscolor>8.5)
 plt.title('Mass',color='w')
 plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=8,c = thiscolor[u],edgecolors='k',cmap=cmap1)
 plt.axis('off')

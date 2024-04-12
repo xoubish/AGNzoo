@@ -157,7 +157,6 @@ _ = create_figure(df_lc = df_lc,
 ```
 
 ```{code-cell} ipython3
-
 x_ztf = np.linspace(0, 1850, 175)  # For ZTF
 kernel = RationalQuadratic(length_scale=1, alpha=0.1)
 colors = ['#3182bd','#6baed6','#9ecae1','#e6550d','#fd8d3c','#fdd0a2','#31a354','#a1d99b', '#c7e9c0', '#756bb1', '#bcbddc', '#dadaeb', '#969696', '#bdbdbd','#d9d9d9']
@@ -286,34 +285,78 @@ plt.tight_layout()
 plt.savefig('output/unify_lc.png')
 ```
 
-+++ {"jp-MarkdownHeadingCollapsed": true}
+```{code-cell} ipython3
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
-## bands_inlc = ['zr','zi','zg']
-objects,dobjects,flabels,keeps,zlist = unify_lc(singleobj_df, redshifts,bands_inlc,xres=160,numplots=1,low_limit_size=50) #nearest neightbor linear interpolation
-objects,dobjects,flabels,keeps,zlist = unify_lc_gp(singleobj_df,redshifts,bands_inlc,xres=160,numplots=1,low_limit_size=10) #Gaussian process unification
+ddd = np.load('data/kauffit_all.npz',allow_pickle=True)
+redshifts3 = ddd['redshifts3']
+fig = plt.figure(figsize=(10,4))
+plt.subplot(1,2,1)
+hio = plt.hist(redshifts3, bins=25, alpha=0.5, color='blue',label='64,482 AGNs in Sample A')
+plt.text(0.2,6500,'Kauffmann et al. 2003')
+plt.text(0.2,6000,'Type2 with BPT lines S/N>3')
 
-bands_inlc = ['W1','W2']
-objects,dobjects,flabels,keeps,zlist = unify_lc(singleobj_df, redshifts,bands_inlc,xres=160,numplots=1,low_limit_size=10) #nearest neightbor linear interpolation
-objects,dobjects,flabels,keeps,zlist = unify_lc_gp(singleobj_df,redshifts,bands_inlc,xres=160,numplots=1,low_limit_size=10) #Gaussian process unification
+plt.legend()
+plt.xlabel(r'$\rm redshift$',size=15)
+plt.ylabel(r'$\rm counts$',size=15)
+
+ax = plt.subplot(1,2,2)
+hio = plt.hist(redshifts, bins=25, alpha=0.5, color='blue',label='2,078 AGNs in Sample B')
+samp = pd.read_csv('data/AGNsample_26Feb24.csv')
+cinja = ['#3182bd','#fd8d3c','#fdd0a2','#31a354','#a1d99b','#c7e9c0',None,None,'#6baed6','#9ecae1','#e6550d']
+for col in range(2,13):
+    u = (samp.iloc[:, col]==1)
+    hio = plt.hist(redshifts[u], bins=15,histtype='step',color=cinja[col-2])#
+    #print(samp.columns[col])
+    #print(color4[col-2])
+plt.legend(loc=2)
+plt.ylim([0,250])
+plt.xlabel(r'$\rm redshift$',size=15)
+
+axins = fig.add_axes([0.62, 0.43, 0.5, 0.5])  # [x, y, width, height] in figure coordinate
+
+objid = df_lc.index.get_level_values('objectid')[:].unique()
+
+seen = Counter()
+
+for (objectid, label), singleobj in df_lc.groupby(level=["objectid", "label"]):
+    bitwise_sum = int(label)
+    active_labels = translate_bitwise_sum_to_labels(bitwise_sum)
+    #active_labels = translate_bitwise_sum_to_labels(label[0])
+    seen.update(active_labels)
+#changing order of labels in dictionary only for text to be readable on the plot
+key_order = ('SDSS_QSO','SPIDER_BL','SPIDER_QSOBL', 'SPIDER_AGNBL',
+             'WISE_Variable','Optical_Variable','Galex_Variable','Turn-on', 'Turn-off','TDE')
+new_queue = OrderedDict()
+for k in key_order:
+    new_queue[k] = seen[k]
+    
+h = axins.pie(new_queue.values(),labels=new_queue.keys(),autopct=autopct_format(new_queue.values()), textprops={'fontsize': 5},startangle=205,  labeldistance=1.1, wedgeprops = { 'linewidth' : 3, 'edgecolor' : 'white' }, colors=color4)
+axins.axis('off')
+
+plt.tight_layout()
+
+plt.savefig('output/sampleAB.png')
+```
 
 ```{code-cell} ipython3
-bands_inlc = ['BP','G','RP','g','r','i','z','y','zg','zr','zi','W1','W2']
+bands_inlc = ['zg','zr','zi','W1','W2']
 numobjs = len(df_lc.index.get_level_values('objectid')[:].unique())
 #objects,dobjects,flabels,keeps,zlist = unify_lc(df_lc, redshifts,bands_inlc,xres=160,numplots=3,low_limit_size=50) #nearest neightbor linear interpolation
 #objects,dobjects,flabels,keeps,zlist = unify_lc_gp(df_lc,redshifts,bands_inlc,xres=160,numplots=5,low_limit_size=10) #Gaussian process unification
 sample_objids = df_lc.index.get_level_values('objectid').unique()[:numobjs]
 df_lc_small = df_lc.loc[sample_objids]
-objects,dobjects,flabels,zlist,keeps = unify_lc_gp_parallel(df_lc_small,redshifts,bands_inlc=bands_inlc,xres=60)
+objects,dobjects,flabels,zlist,keeps = unify_lc_gp_parallel(df_lc_small,redshifts,bands_inlc=bands_inlc,xres=160)
 
 
 # calculate some basic statistics with a sigmaclipping with width 5sigma
 fvar, maxarray, meanarray = stat_bands(objects,dobjects,bands_inlc,sigmacl=5)
 
 # combine different waveband into one array
-dat_notnormal = combine_bands(objects,bands_inlc)
+dat_notnormal = combine_bands(objects,bands_inlc) 
 
 # Normalize the combinde array by mean brightness in a waveband after clipping outliers:
-datm = normalize_clipmax_objects(dat_notnormal,meanarray,band = 0)
+datm = normalize_clipmax_objects(dat_notnormal,meanarray,band = -1)
 
 # shuffle data incase the ML routines are sensitive to order
 data,fzr,p = shuffle_datalabel(datm,flabels)
@@ -422,13 +465,13 @@ ax3.set_xlabel(r'$\rm Redshifts$',size=15)
 ax3.set_ylabel(r'$\rm counts$',size=15)
 plt.legend()
 plt.tight_layout()
-plt.savefig('output/sample.png')
+#plt.savefig('output/sample.png')
 ```
 
 ```{code-cell} ipython3
 plt.figure(figsize=(12,8))
 markersize=100
-mapper = umap.UMAP(n_neighbors=50,min_dist=0.9,metric='manhattan',random_state=20).fit(data)
+mapper = umap.UMAP(n_neighbors=50,min_dist=0.99,metric='manhattan',random_state=20).fit(data)
 
 
 ax1 = plt.subplot(2,2,3)
@@ -467,7 +510,7 @@ cax = divider.append_axes("right", size="5%", pad=0.05)
 plt.colorbar(cf,cax=cax)
 
 plt.tight_layout()
-#plt.savefig('umap-ztf.png')
+plt.savefig('output/umap-ztf-wise-normalizedbands.png')
 ```
 
 ```{code-cell} ipython3

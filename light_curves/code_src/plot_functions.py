@@ -279,6 +279,7 @@ def _plot_ztf_lightcurve(band, band_df, axes):
     # Plot on "A" axis.
     axes["A"].errorbar(band_df.time, band_df.flux, band_df.err, capsize=1.0, elinewidth=0.5,
                             marker="o", markersize=2, linestyle="", label=f"ZTF {band}", color=color)
+    #axes["A"].set_yscale('log')
 
     # Plot "B" zoomin
     axes["B"].errorbar(band_df.time, band_df.flux, band_df.err, capsize=1.0, elinewidth=0.5,
