@@ -87,7 +87,7 @@ def create_figure(df_lc, index, save_output):
     objectid, singleobj_df = grouped[index]
     
     # Set up for plotting.
-    fig, axes = plt.subplot_mosaic(mosaic=[["A"],["A"],["B"]] , figsize=(10,6))
+    fig, axes = plt.subplot_mosaic(mosaic=[["A"],["A"],["B"]] , figsize=(8,6))
 
     # Iterate over bands and plot light curves.
     band_groups = _clean_lightcurves(singleobj_df).groupby('band')
@@ -289,7 +289,7 @@ def _plot_ztf_lightcurve(band, band_df, axes):
     xx = band_df.time.values
     yy = band_df.flux.values
     ee = band_df.err.values
-    x_bin = 30  # in MJD
+    x_bin = 20  # in MJD
     x_grid = np.arange(np.nanmin(xx), np.nanmax(xx) + x_bin / 4, x_bin / 4)
     tmp = Table(names=["xbin", "ybin", "yerr"])
 
