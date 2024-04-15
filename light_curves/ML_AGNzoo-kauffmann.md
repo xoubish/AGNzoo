@@ -11,23 +11,8 @@ kernelspec:
   name: python3
 ---
 
-# How do AGNs selected with different techniques compare?
+# Type2 AGNs line ratios
 
-By the IPAC Science Platform Team, last edit: April 11th, 2024
-
-***
-
-
-## Goal
-Writing these up
-
-
-
-## Introduction
-
-Active Galactic Nuclei (AGNs), some of the most powerful sources in the universe, emit a broad range of electromagnetic radiation, from radio waves to gamma rays. Consequently, there is a wide variety of AGN labels depending on the identification/selection scheme and the presence or absence of certain emissions (e.g., Radio loud/quiet, Quasars, Blazars, Seiferts, Changing looks). According to the unified model, this zoo of labels we see depend on a limited number of parameters, namely the viewing angle, the accretion rate, presence or lack of jets, and perhaps the properties of the host/environment (e.g., [Padovani et al. 2017](https://arxiv.org/pdf/1707.07134.pdf)). Here, we collect archival temporal data and labels from the literature to compare how some of these different labels/selection schemes compare.
-
-We use manifold learning and dimensionality reduction to learn the distribution of AGN lightcurves observed with different facilities. We mostly focus on UMAP ([Uniform Manifold Approximation and Projection, McInnes 2020](https://arxiv.org/pdf/1802.03426.pdf)) but also show SOM ([Self organizing Map, Kohonen 1990](https://ieeexplore.ieee.org/document/58325)) examples. The reduced 2D projections from these two unsupervised ML techniques reveal similarities and overlaps of different selection techniques and coloring the projections with various statistical physical properties (e.g., mean brightness, fractional lightcurve variation) is informative of correlations of the selections technique with physics such as AGN variability. Using different parts of the EM in training (or in building the initial higher dimensional manifold) demonstrates how much information if any is in that part of the data for each labeling scheme, for example whether with ZTF optical light curves alone, we can identify sources with variability in WISE near IR bands. These techniques also have a potential for identifying targets of a specific class or characteristic for future follow up observations.
 
 ```{code-cell} ipython3
 #!pip install -r requirements.txt
@@ -180,12 +165,15 @@ print(np.min(redshifts3),np.mean(redshifts3),len(redshifts3))
 ```
 
 ```{code-cell} ipython3
+mapper = umap.UMAP(n_neighbors=100,min_dist=0.99,metric=dtw_distance,random_state=2).fit(clean_data)
+```
+
+```{code-cell} ipython3
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 plt.figure(figsize=(10,6),facecolor='white')
 cmap1 = 'viridis'
 markersize=15
-#mapper = umap.UMAP(n_neighbors=100,min_dist=0.99,metric='manhattan',random_state=2).fit(clean_data)
 
 ax1 = plt.subplot(2,3,1)
 ax1.set_title(r'$\rm Mean\ brightness$')

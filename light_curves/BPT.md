@@ -13,21 +13,7 @@ kernelspec:
 
 # How do AGNs selected with different techniques compare?
 
-By the IPAC Science Platform Team, last edit: March 6th, 2024
-
-***
-
-
-## Goal
-Writing these up
-
-
-
-## Introduction
-
-Active Galactic Nuclei (AGNs), some of the most powerful sources in the universe, emit a broad range of electromagnetic radiation, from radio waves to gamma rays. Consequently, there is a wide variety of AGN labels depending on the identification/selection scheme and the presence or absence of certain emissions (e.g., Radio loud/quiet, Quasars, Blazars, Seiferts, Changing looks). According to the unified model, this zoo of labels we see depend on a limited number of parameters, namely the viewing angle, the accretion rate, presence or lack of jets, and perhaps the properties of the host/environment (e.g., [Padovani et al. 2017](https://arxiv.org/pdf/1707.07134.pdf)). Here, we collect archival temporal data and labels from the literature to compare how some of these different labels/selection schemes compare.
-
-We use manifold learning and dimensionality reduction to learn the distribution of AGN lightcurves observed with different facilities. We mostly focus on UMAP ([Uniform Manifold Approximation and Projection, McInnes 2020](https://arxiv.org/pdf/1802.03426.pdf)) but also show SOM ([Self organizing Map, Kohonen 1990](https://ieeexplore.ieee.org/document/58325)) examples. The reduced 2D projections from these two unsupervised ML techniques reveal similarities and overlaps of different selection techniques and coloring the projections with various statistical physical properties (e.g., mean brightness, fractional lightcurve variation) is informative of correlations of the selections technique with physics such as AGN variability. Using different parts of the EM in training (or in building the initial higher dimensional manifold) demonstrates how much information if any is in that part of the data for each labeling scheme, for example whether with ZTF optical light curves alone, we can identify sources with variability in WISE near IR bands. These techniques also have a potential for identifying targets of a specific class or characteristic for future follow up observations.
+In this notebook I added BOSS starforming galaxies to the Kauffmann sample with no emission line ratio information except knowing that they are in the starforming part. To see if we can separate thing on bpt using the umap trained on light curves, which seems not the case.
 
 ```{code-cell} ipython3
 #!pip install -r requirements.txt
@@ -221,7 +207,7 @@ redshifts31 = np.concatenate([d1['redshifts3'], d2['redshifts3']], axis=0)
 bpt131 = np.concatenate([d1['bpt13'], bptsf], axis=0)
 bpt231 = np.concatenate([d1['bpt23'], bptsf], axis=0)
 
-u = (redshifts31>0.01) & (redshifts31<0.4)
+u = (redshifts31>0.01) & (redshifts31<0.2)
 clean_data = clean_data1[u]
 fvar_arr1 = fvar_arr11[:,u]
 average_arr1 = average_arr11[:,u]
@@ -278,7 +264,7 @@ plt.figure(figsize=(20,4))
 ykewley = [0.61/(x - 0.47) + 1.19 if x < 0.47 else -3 for x in bpt23]
 ykauffmann = [0.61/(x - 0.05) + 1.3 if x < 0.05 else -3 for x in bpt23]
 
-usf = (bpt13==-0.5)&(bpt23==-0.5)#(bpt13<ykauffmann)&(bpt13>-2)
+usf = (bpt131==-0.5)&(bpt231==-0.5)#(bpt13<ykauffmann)&(bpt13>-2)
 ucomp = (bpt13<=ykewley)&(bpt13>ykauffmann)
 uagn = (bpt13>=ykewley)&(bpt13<=2)
 
