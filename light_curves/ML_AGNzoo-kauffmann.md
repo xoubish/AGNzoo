@@ -11,23 +11,8 @@ kernelspec:
   name: python3
 ---
 
-# How do AGNs selected with different techniques compare?
+# Type2 AGNs line ratios
 
-By the IPAC Science Platform Team, last edit: March 1st, 2024
-
-***
-
-
-## Goal
-Writing these up
-
-
-
-## Introduction
-
-Active Galactic Nuclei (AGNs), some of the most powerful sources in the universe, emit a broad range of electromagnetic radiation, from radio waves to gamma rays. Consequently, there is a wide variety of AGN labels depending on the identification/selection scheme and the presence or absence of certain emissions (e.g., Radio loud/quiet, Quasars, Blazars, Seiferts, Changing looks). According to the unified model, this zoo of labels we see depend on a limited number of parameters, namely the viewing angle, the accretion rate, presence or lack of jets, and perhaps the properties of the host/environment (e.g., [Padovani et al. 2017](https://arxiv.org/pdf/1707.07134.pdf)). Here, we collect archival temporal data and labels from the literature to compare how some of these different labels/selection schemes compare.
-
-We use manifold learning and dimensionality reduction to learn the distribution of AGN lightcurves observed with different facilities. We mostly focus on UMAP ([Uniform Manifold Approximation and Projection, McInnes 2020](https://arxiv.org/pdf/1802.03426.pdf)) but also show SOM ([Self organizing Map, Kohonen 1990](https://ieeexplore.ieee.org/document/58325)) examples. The reduced 2D projections from these two unsupervised ML techniques reveal similarities and overlaps of different selection techniques and coloring the projections with various statistical physical properties (e.g., mean brightness, fractional lightcurve variation) is informative of correlations of the selections technique with physics such as AGN variability. Using different parts of the EM in training (or in building the initial higher dimensional manifold) demonstrates how much information if any is in that part of the data for each labeling scheme, for example whether with ZTF optical light curves alone, we can identify sources with variability in WISE near IR bands. These techniques also have a potential for identifying targets of a specific class or characteristic for future follow up observations.
 
 ```{code-cell} ipython3
 #!pip install -r requirements.txt
@@ -125,11 +110,13 @@ redshifts, o3lum,o3corr, bpt1,bpt2, rml50, rmu, con, d4n,hda, vdisp = np.array(r
 df_lc = pd.read_parquet('data/df_lc_kauffmann.parquet')
 ```
 
-```{code-cell} ipython3
+```{raw-cell}
 bands_inlc = ['zg','zr','zi','W1','W2']
 numobjs = len(df_lc.index.get_level_values('objectid')[:].unique())
 #objects,dobjects,flabels,keeps,zlist = unify_lc(df_lc, redshifts,bands_inlc,xres=160,numplots=3,low_limit_size=50) #nearest neightbor linear interpolation
 #objects,dobjects,flabels,keeps,zlist = unify_lc_gp(df_lc,redshifts,bands_inlc,xres=160,numplots=5,low_limit_size=10) #Gaussian process unification
+print(numobjs)
+#numobjs = 10
 sample_objids = df_lc.index.get_level_values('objectid').unique()[:numobjs]
 df_lc_small = df_lc.loc[sample_objids]
 objects,dobjects,flabels,zlist,keeps = unify_lc_gp_parallel(df_lc_small,redshifts,bands_inlc=bands_inlc,xres=180)
@@ -166,25 +153,100 @@ redshifts2, o3lum2,o3corr2, bpt12,bpt22, rml502, rmu2, con2, d4n2,hda2, vdisp2 =
 redshifts3, o3lum3,o3corr3, bpt13,bpt23, rml503, rmu3, con3, d4n3,hda3, vdisp3 = redshifts2[~nan_rows], o3lum2[~nan_rows],o3corr2[~nan_rows], bpt12[~nan_rows],bpt22[~nan_rows], rml502[~nan_rows], rmu2[~nan_rows], con2[~nan_rows], d4n2[~nan_rows],hda2[~nan_rows], vdisp2[~nan_rows]
 
 fvar_arr1,average_arr1 = fvar_arr[:,~nan_rows],average_arr[:,~nan_rows]
-np.savez('data/kauffit_all',data=clean_data,fvar_arr1 = fvar_arr1, average_arr1 = average_arr1,redshifts3=redshifts3,o3lum3=o3lum3,o3corr3=o3corr3,bpt13=bpt13,bpt23=bpt23,rml503=rml503,rmu3=rmu3,con3=con3,d4n3=d4n3,hda3=hda3,vdisp3=vdisp3)
+np.savez('data/kauffit_all2',data=clean_data,fvar_arr1 = fvar_arr1, average_arr1 = average_arr1,redshifts3=redshifts3,o3lum3=o3lum3,o3corr3=o3corr3,bpt13=bpt13,bpt23=bpt23,rml503=rml503,rmu3=rmu3,con3=con3,d4n3=d4n3,hda3=hda3,vdisp3=vdisp3)
 ```
 
 ```{code-cell} ipython3
 d = np.load('data/kauffit_all.npz',allow_pickle=True)
 clean_data = d['data']
 fvar_arr1,average_arr1 = d['fvar_arr1'],d['average_arr1']
-redshifts3, o3lum3,o3corr3, bpt13,bpt23, rml503, rmu3, con3, d4n3,hda3, vdisp3 = d['redshifts3'], d['o3lum3'],d['o3corr3'], d['bpt13'],d['bpt23'], d['rml503'], d['rmu3'], d['con3'],d['d4n3'],d['hda3'], d['vdisp3']
-                                                                                   
+redshifts3, o3lum3,o3corr3, bpt13,bpt23, rml503, rmu3, con3, d4n3,hda3, vdisp3 = d['redshifts3'], d['o3lum3'],d['o3corr3'], d['bpt13'],d['bpt23'], d['rml503'], d['rmu3'], d['con3'],d['d4n3'],d['hda3'], d['vdisp3']                                                                                   
+print(np.min(redshifts3),np.mean(redshifts3),len(redshifts3))
 ```
 
 ```{code-cell} ipython3
-print(np.min(redshifts3),np.max(redshifts3))
+mapper = umap.UMAP(n_neighbors=100,min_dist=0.99,metric=dtw_distance,random_state=2).fit(clean_data)
+```
+
+```{code-cell} ipython3
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+plt.figure(figsize=(10,6),facecolor='white')
+cmap1 = 'viridis'
+markersize=15
+
+ax1 = plt.subplot(2,3,1)
+ax1.set_title(r'$\rm Mean\ brightness$')
+thiscolor=np.log10(np.nansum(average_arr1,axis=0))
+u = (thiscolor<2) & (thiscolor>=0)
+cf = ax1.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
+plt.axis('off')
+divider = make_axes_locatable(ax1)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+plt.colorbar(cf,cax=cax)
+
+ax0 = plt.subplot(2,3,2)
+ax0.set_title(r'$\rm Mean\ Fractional\ Variation$')
+thiscolor=stretch_small_values_arctan(np.nansum(fvar_arr1,axis=0)/np.count_nonzero(~np.isnan(fvar_arr1), axis=0),factor=30)
+u = (thiscolor<2.0) & (thiscolor>=0.)
+cf = ax0.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
+plt.axis('off')
+divider = make_axes_locatable(ax0)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+plt.colorbar(cf,cax=cax)
+
+ax0 = plt.subplot(2,3,3)
+
+thiscolor=rml503
+u = (thiscolor<12.5) & (thiscolor>9.5)
+ax0.set_title(r'$\rm Log (M_{* 50}/M_{\odot})$',color='k')
+cf = ax0.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
+plt.axis('off')
+divider = make_axes_locatable(ax0)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+plt.colorbar(cf,cax=cax)
+
+
+ax0 = plt.subplot(2,3,5)
+thiscolor=o3corr3
+u = (thiscolor<9) & (thiscolor>5.5)
+ax0.set_title(r'$\rm Log L[OIII] (L_{\odot})$',color='k')
+cf = ax0.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
+plt.axis('off')
+divider = make_axes_locatable(ax0)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+plt.colorbar(cf,cax=cax)
+
+ax0 = plt.subplot(2,3,6)
+thiscolor=hda3
+u = (thiscolor<10) & (thiscolor>-2)
+ax0.set_title(r'$\rm H\delta_{A}$',color='k')
+cf = ax0.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
+plt.axis('off')
+divider = make_axes_locatable(ax0)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+plt.colorbar(cf,cax=cax)
+
+ax0 = plt.subplot(2,3,4)
+
+thiscolor=d4n3
+u = (thiscolor<2.5) & (thiscolor>1)
+ax0.set_title(r'$\rm D_{n}4000$',color='k')
+cf = ax0.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
+plt.axis('off')
+divider = make_axes_locatable(ax0)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+plt.colorbar(cf,cax=cax)
+
+
+plt.tight_layout()
+plt.savefig('output/kauffmann-umap.png')
 ```
 
 ```{code-cell} ipython3
 plt.figure(figsize=(12,5))
 markersize=20
-#mapper = umap.UMAP(n_neighbors=100,min_dist=0.99,metric='manhattan',random_state=18).fit(clean_data)
+mapper = umap.UMAP(n_neighbors=100,min_dist=0.99,metric='manhattan',random_state=18).fit(clean_data)
 
 ax1 = plt.subplot(1,2,1)
 ax1.set_title(r'mean brightness',size=20)
@@ -214,30 +276,30 @@ plt.tight_layout()
 ```{code-cell} ipython3
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-plt.figure(figsize=(12,5),facecolor='black')
-plt.subplot(1,2,1)
+plt.figure(figsize=(12,5),facecolor='white')
+plt.subplot(1,3,1)
 thiscolor=o3lum3
-u = (thiscolor<9) & (thiscolor>4)
-plt.title('OIII Luminosity',color='w')
+u = (thiscolor<9) & (thiscolor>5)
+plt.title('OIII Luminosity',color='k')
 plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=8,c = thiscolor[u],edgecolor='k',cmap=cmap1)
 plt.axis('off')
 divider = make_axes_locatable(plt.gca())
 cax = divider.append_axes("right", size="5%", pad=0.05)
 cbar = plt.colorbar(cax=cax)
-cbar.ax.yaxis.set_tick_params(color='white')
-o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
+cbar.ax.yaxis.set_tick_params(color='k')
+o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='k')
 
 plt.subplot(1,2,2)
 thiscolor=o3corr3
-u = (thiscolor<9) & (thiscolor>4)
-plt.title('OIII Luminosity corrected',color='w')
+u = (thiscolor<9) & (thiscolor>5)
+plt.title('OIII Luminosity corrected',color='k')
 plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=8,c = thiscolor[u],edgecolors='k',cmap=cmap1)
 plt.axis('off')
 divider = make_axes_locatable(plt.gca())
 cax = divider.append_axes("right", size="5%", pad=0.05)
 cbar = plt.colorbar(cax=cax)
-cbar.ax.yaxis.set_tick_params(color='white')
-o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
+cbar.ax.yaxis.set_tick_params(color='k')
+o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='k')
 ```
 
 ```{code-cell} ipython3
@@ -413,7 +475,7 @@ o = plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
 plt.figure(figsize=(16,4),facecolor='black')
 plt.subplot(1,3,1)
 thiscolor=rml503
-u = (thiscolor<13) & (thiscolor>9)
+u = (thiscolor<13) & (thiscolor>8.5)
 plt.title('Mass',color='w')
 plt.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],s=8,c = thiscolor[u],edgecolors='k',cmap=cmap1)
 plt.axis('off')
