@@ -13,7 +13,6 @@ kernelspec:
 
 # Type2 AGNs line ratios
 
-
 ```{code-cell} ipython3
 #!pip install -r requirements.txt
 import sys
@@ -240,7 +239,7 @@ plt.colorbar(cf,cax=cax)
 
 
 plt.tight_layout()
-plt.savefig('output/kauffmann-umap.png')
+#plt.savefig('output/kauffmann-umap.png')
 ```
 
 ```{code-cell} ipython3

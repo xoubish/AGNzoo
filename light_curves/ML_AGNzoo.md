@@ -527,87 +527,105 @@ bands_inlc = ['zg','zr','zi','W1','W2']
 numobjs = len(df_lc.index.get_level_values('objectid')[:].unique())
 sample_objids = df_lc.index.get_level_values('objectid').unique()[:numobjs]
 df_lc_small = df_lc.loc[sample_objids]
-objects,dobjects,flabels,zlist,keeps = unify_lc_gp_parallel(df_lc_small,redshifts,bands_inlc=bands_inlc,xres=160)
+#objects1,dobjects1,flabels1,zlist1,keeps1 = unify_lc_gp_parallel(df_lc_small,redshifts,bands_inlc=bands_inlc,xres=160)
 
 # calculate some basic statistics with a sigmaclipping with width 5sigma
-fvar, maxarray, meanarray = stat_bands(objects,dobjects,bands_inlc,sigmacl=5)
+fvar1, maxarray1, meanarray1 = stat_bands(objects1,dobjects1,bands_inlc,sigmacl=5)
 
 # combine different waveband into one array
-dat_notnormal = combine_bands(objects,bands_inlc)
+dat_notnormal1 = combine_bands(objects1,bands_inlc)
 
 # Normalize the combinde array by mean brightness in a waveband after clipping outliers:
-datm = normalize_clipmax_objects(dat_notnormal,meanarray,band = 0)
+datm1 = normalize_clipmax_objects(dat_notnormal1,meanarray1,band = 0)
 
 # shuffle data incase the ML routines are sensitive to order
-data,fzr,p = shuffle_datalabel(datm,flabels)
-fvar_arr,maximum_arr,average_arr = fvar[:,p],maxarray[:,p],meanarray[:,p]
-redshift_shuffled = zlist[p]
+data1,fzr1,p1 = shuffle_datalabel(datm1,flabels1)
+fvar_arr1,maximum_arr1,average_arr1 = fvar1[:,p1],maxarray1[:,p1],meanarray1[:,p1]
+redshift_shuffled1 = zlist1[p1]
 
-labc = {}  # Initialize labc to hold indices of each unique label
-for index, f in enumerate(fzr):
+labc1 = {}  # Initialize labc to hold indices of each unique label
+for index, f in enumerate(fzr1):
     lab = translate_bitwise_sum_to_labels(int(f))
     for label in lab:
-        if label not in labc:
-            labc[label] = []  # Initialize the list for this label if it's not already in labc
-        labc[label].append(index)  # Append the current index to the list of indices for this label
+        if label not in labc1:
+            labc1[label] = []  # Initialize the list for this label if it's not already in labc
+        labc1[label].append(index)  # Append the current index to the list of indices for this label
 ```
 
 ```{code-cell} ipython3
-#mapper = umap.UMAP(n_neighbors=100,min_dist=0.99,metric=dtw_distance,random_state=3).fit(data)
-#mapper = umap.UMAP(n_neighbors=100,min_dist=0.99,metric='manhattan',random_state=20).fit(data)
+print(len(redshift_shuffled))
+```
 
-plt.figure(figsize=(12,4))
+```{code-cell} ipython3
+#mapper1 = umap.UMAP(n_neighbors=100,min_dist=0.99,metric=dtw_distance,random_state=5).fit(data1)
+#mapper1 = umap.UMAP(n_neighbors=100,min_dist=0.99,metric='manhattan',random_state=20).fit(data1)
+
+plt.figure(figsize=(15,4))
 markersize=100
 cmap1 = 'viridis'
 
-ax1 = plt.subplot(1,3,1)
+ax1 = plt.subplot(1,4,1)
 ax1.set_title(r'$\rm Mean\ brightness$')
-thiscolor=np.log10(np.nansum(average_arr,axis=0))
+thiscolor=np.log10(np.nansum(average_arr1,axis=0))
 u = (thiscolor<2) & (thiscolor>=-2)
-cf = ax1.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
+cf = ax1.scatter(mapper1.embedding_[u,0],mapper1.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
+plt.text(4,8,'ZTF+WISE')
 plt.axis('off')
 divider = make_axes_locatable(ax1)
 cax = divider.append_axes("right", size="5%", pad=0.05)
 plt.colorbar(cf,cax=cax)
 
 
-ax1 = plt.subplot(1,3,3)
+ax1 = plt.subplot(1,4,2)
 ax1.set_title(r'$\rm Mean\ Fractional\ Variation$')
-thiscolor=stretch_small_values_arctan(np.nansum(fvar_arr,axis=0),factor=3)
+thiscolor=stretch_small_values_arctan(np.nansum(fvar_arr1,axis=0),factor=3)
 u = (thiscolor<1.5) & (thiscolor>=0)
-cf = ax1.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
+cf = ax1.scatter(mapper1.embedding_[u,0],mapper1.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
+plt.text(4,8,'ZTF+WISE')
 plt.axis('off')
 divider = make_axes_locatable(ax1)
 cax = divider.append_axes("right", size="5%", pad=0.05)
 plt.colorbar(cf,cax=cax)
 
 
-ax1 = plt.subplot(1,3,2)
+ax1 = plt.subplot(1,4,3)
 ax1.set_title(r'$\rm Redshift$')
-thiscolor=redshift_shuffled
+thiscolor=redshift_shuffled1
+u = (thiscolor<0.8) & (thiscolor>=0)
+cf = ax1.scatter(mapper1.embedding_[u,0],mapper1.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
+plt.axis('off')
+plt.text(4,8,'ZTF+WISE')
+
+divider = make_axes_locatable(ax1)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+plt.colorbar(cf,cax=cax)
+
+ax1 = plt.subplot(1,4,4)
+ax1.set_title(r'$\rm Redshift$')
+thiscolor=redshifts3
 u = (thiscolor<0.8) & (thiscolor>=0)
 cf = ax1.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
+plt.text(-3,15,'PanStaRRS+GAIA+ZTF+WISE')
 plt.axis('off')
 divider = make_axes_locatable(ax1)
 cax = divider.append_axes("right", size="5%", pad=0.05)
 plt.colorbar(cf,cax=cax)
 
 plt.tight_layout()
-plt.savefig('output/umap-ztfw-sampleA-1.png')
+plt.savefig('output/pangaiaztfwise.png')
 ```
 
 ```{code-cell} ipython3
-plt.figure(figsize=(12,8))
 markersize=100
 
-hist, x_edges, y_edges = np.histogram2d(mapper.embedding_[:, 0], mapper.embedding_[:, 1], bins=10)
+hist, x_edges, y_edges = np.histogram2d(mapper1.embedding_[:, 0], mapper1.embedding_[:, 1], bins=12)
 plt.figure(figsize=(15,10))
 i=1
 laborder = ['SDSS_QSO','WISE_Variable','Optical_Variable','Galex_Variable','SPIDER_AGN','SPIDER_AGNBL','SPIDER_QSOBL','SPIDER_BL','Turn-on','Turn-off','TDE','Fermi_Blazars']
 for label in laborder:
-    if label in labc:
-        indices = labc[label]
-        hist_per_cluster, _, _ = np.histogram2d(mapper.embedding_[indices,0], mapper.embedding_[indices,1], bins=(x_edges, y_edges))
+    if label in labc1:
+        indices = labc1[label]
+        hist_per_cluster, _, _ = np.histogram2d(mapper1.embedding_[indices,0], mapper1.embedding_[indices,1], bins=(x_edges, y_edges))
         prob = hist_per_cluster / hist
         plt.subplot(3,4,i)
         plt.title(label)
@@ -619,10 +637,10 @@ for label in laborder:
 ax2 = plt.subplot(3,4,12)
 ax2.set_title('sample origin',size=20)
 counts = 1
-for label, indices in labc.items():
-    cf = ax2.scatter(mapper.embedding_[indices,0],mapper.embedding_[indices,1],s=markersize,c = color4[counts],alpha=0.8,edgecolor='k',label=label)
+for label, indices in labc1.items():
+    cf = ax2.scatter(mapper1.embedding_[indices,0],mapper1.embedding_[indices,1],s=markersize,c = color4[counts],alpha=0.8,edgecolor='k',label=label)
     counts+=1
-plt.legend(loc=3,fontsize=8)
+plt.legend(loc=4,fontsize=8)
 plt.axis('off')
 
 plt.tight_layout()
@@ -678,8 +696,8 @@ for index, f in enumerate(clean_fzr):
 ```
 
 ```{code-cell} ipython3
-#mapper = umap.UMAP(n_neighbors=100,min_dist=0.99,metric=dtw_distance,random_state=3).fit(data)
-mapper = umap.UMAP(n_neighbors=100,min_dist=0.99,metric='manhattan',random_state=20).fit(clean_data)
+mapper = umap.UMAP(n_neighbors=100,min_dist=0.99,metric=dtw_distance,random_state=3).fit(clean_data)
+#mapper = umap.UMAP(n_neighbors=100,min_dist=0.99,metric='manhattan',random_state=20).fit(clean_data)
 
 plt.figure(figsize=(12,4))
 markersize=100
