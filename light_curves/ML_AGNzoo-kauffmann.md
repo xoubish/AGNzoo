@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.16.1
+    jupytext_version: 1.15.2
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -14,7 +14,7 @@ kernelspec:
 # Type2 AGNs line ratios
 
 ```{code-cell} ipython3
-#!pip install -r requirements.txt
+!pip install -r requirements.txt
 import sys
 import os
 import re

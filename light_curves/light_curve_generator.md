@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.16.1
+    jupytext_version: 1.15.2
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -415,9 +415,9 @@ parallel_df_lc.data
 
 ```{code-cell} ipython3
 # Save the data for future use with ML notebook
-#parquet_savename = 'output/df_lc_090723_yang.parquet'
-#parallel_df_lc.data.to_parquet(parquet_savename)
-#print("file saved!")
+parquet_savename = 'output/df_lc_Dave.parquet'
+df_lc.data.to_parquet(parquet_savename)
+print("file saved!")
 ```
 
 ```{code-cell} ipython3
