@@ -27,9 +27,9 @@ def translate_bitwise_sum_to_labels(bitwise_sum):
     - List of strings, the labels that are set to 1.
     """
     # Initialize agnlabels
-    #agnlabels = ['SDSS_QSO', 'WISE_Variable','Optical_Variable','Galex_Variable', 'Turn-on', 'Turn-off', 'SPIDER','SPIDER_AGN','SPIDER_BL','SPIDER_QSOBL','SPIDER_AGNBL', 'TDE']
-    agnlabels = ['SDSS_QSO','WISE_Variable','Optical_Variable','Charisi16','Chen20','Graham15','Liu19','Ward22_wise','Ward22_ztf','bigMAC','Rodriguez06']
-
+    agnlabels = ['SDSS_QSO', 'WISE_Variable','Optical_Variable','Galex_Variable', 'Turn-on', 'Turn-off', 'SPIDER','SPIDER_AGN','SPIDER_BL','SPIDER_QSOBL','SPIDER_AGNBL', 'TDE']
+    agnlabels =['SDSS_QSO','WISE_Variable','Optical_Variable','Charisi16','Chen20','Graham15','Liu19','Ward22_wise','Ward22_ztf','bigMAC_dual','Rodriguez06','bigMAC_binary','PG1302','OJ287']
+    
     active_labels = []
     for i, label in enumerate(agnlabels):
         # Check if the ith bit is set to 1
