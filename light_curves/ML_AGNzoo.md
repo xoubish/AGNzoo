@@ -254,7 +254,7 @@ for index, f in enumerate(fzr):
 ```
 
 ```{code-cell} ipython3
-mapper = umap.UMAP(n_neighbors=50,min_dist=0.99,metric=dtw_distance,random_state=2).fit(data)
+mapper = umap.UMAP(n_neighbors=100,min_dist=0.99,metric=dtw_distance,random_state=2).fit(data)
 #mapper = umap.UMAP(n_neighbors=100,min_dist=0.99,metric='manhattan',random_state=3).fit(data)
 
 plt.figure(figsize=(12,4))
@@ -299,7 +299,7 @@ laborder = ['SDSS_QSO',
 
 # Compute background color map for full dataset
 thiscolor = stretch_small_values_arctan(np.nansum(fvar_arr, axis=0), factor=3)
-u = (thiscolor < 1.) & (thiscolor >= 0)  # Apply mask
+u = (thiscolor < 2) & (thiscolor >= 0)  # Apply mask
 
 # Iterate over labels and plot
 for i, label in enumerate(laborder):
@@ -330,6 +330,66 @@ for i, label in enumerate(laborder):
 # Adjust layout
 plt.tight_layout()
 plt.savefig('newway_ZTF.png')
+```
+
+```{code-cell} ipython3
+# Assuming 'mapper.embedding_' is your data and 'labc' is your dictionary of labels to indices
+hist, x_edges, y_edges = np.histogram2d(mapper.embedding_[:, 0], mapper.embedding_[:, 1], bins=11)
+plt.figure(figsize=(12, 6))
+
+# Define groups of labels
+group_labels = {
+    'SDSS QSOs': ['SDSS_QSO'],
+    'MBHB Candidates': ['bigMAC_binary','OJ287','PG1302','Charisi16', 'Chen20', 'Graham15', 'Liu19', 'Ward22_wise', 'Ward22_ztf'],
+}
+
+# Custom colormap for visual consistency
+custom_cmap = 'viridis'  # Replace with your colormap of choice
+
+# Create subplots for each group
+i = 1
+for group_name, labels in group_labels.items():
+    group_indices = np.hstack([labc[label] for label in labels if label in labc])
+    hist_per_group, _, _ = np.histogram2d(mapper.embedding_[group_indices, 0], mapper.embedding_[group_indices, 1], bins=(x_edges, y_edges))
+    prob = hist_per_group / hist
+    plt.subplot(2, 3, i)  # Adjust the subplot layout as needed
+    plt.title(group_name)
+    plt.contourf(x_edges[:-1], y_edges[:-1], prob.T, levels=15, alpha=0.8, cmap=custom_cmap)
+    plt.colorbar()
+    plt.axis('off')
+    i += 1
+
+plt.scatter(-13,31,marker='x',color='r',label='PG 1302-2102')
+plt.scatter(-6.5,29.5,marker='x',color='r',label='OJ 287')
+plt.legend(loc=4)
+
+group_labels = {
+    'Confirmed Dual-MBHs': ['bigMAC_dual', 'Rodriguez06']#
+}
+
+# Custom colormap for visual consistency
+custom_cmap = 'viridis'  # Replace with your colormap of choice
+
+# Create subplots for each group
+i = 1
+for group_name, labels in group_labels.items():
+    group_indices = np.hstack([labc[label] for label in labels if label in labc])
+    hist_per_group, _, _ = np.histogram2d(mapper.embedding_[group_indices, 0], mapper.embedding_[group_indices, 1], bins=(x_edges, y_edges))
+    prob = hist_per_group / hist
+    plt.subplot(2, 3, 3)  # Adjust the subplot layout as needed
+    plt.title(group_name)
+    plt.contourf(x_edges[:-1], y_edges[:-1], prob.T, levels=12, alpha=0.8, cmap=custom_cmap)
+    plt.colorbar()
+    plt.axis('off')
+    i += 1
+
+plt.scatter(1,28.5,marker='x',color='r',label='0402+379')
+plt.legend(loc=4)
+
+# Define groups of labels
+
+plt.tight_layout()
+plt.savefig('ztf_hist2d.png')
 ```
 
 # Wise only
@@ -448,41 +508,6 @@ plt.savefig('newway_wise.png')
 ```
 
 ```{code-cell} ipython3
-# Calculate 2D histogram
-hist, x_edges, y_edges = np.histogram2d(mapper.embedding_[:, 0], mapper.embedding_[:, 1], bins=15)
-plt.figure(figsize=(18,8))
-i=1
-#laborder = ['SDSS_QSO','WISE_Variable','Optical_Variable','Galex_Variable','SPIDER_AGN','SPIDER_AGNBL','SPIDER_QSOBL','SPIDER_BL','Turn-on','Turn-off','TDE','Fermi_Blazars']
-laborder = ['SDSS_QSO','WISE_Variable','Optical_Variable','Charisi16','Chen20','Graham15','Liu19','Ward22_wise','Ward22_ztf','bigMAC','Rodriguez06']
-laborder = ['SDSS_QSO','WISE_Variable','Optical_Variable','bigMAC_dual','Rodriguez06','bigMAC_binary','Graham15','Ward22_wise','Ward22_ztf','Charisi16','Chen20','Liu19','PG1302','OJ287']
-
-for label in laborder:
-    if label in labc:
-        indices = labc[label]
-        hist_per_cluster, _, _ = np.histogram2d(mapper.embedding_[indices,0], mapper.embedding_[indices,1], bins=(x_edges, y_edges))
-        prob = hist_per_cluster / hist
-        plt.subplot(3,5,i)
-        plt.title(label)
-        plt.contourf(x_edges[:-1], y_edges[:-1], prob.T, levels=20, alpha=0.8,cmap=custom_cmap)
-        plt.colorbar()
-        plt.axis('off')
-        #cf = ax0.scatter(mapper.embedding_[indices,0],mapper.embedding_[indices,1],s=80,alpha=0.5,edgecolor='gray',label=label,c=colors[i-1])
-        i+=1
-        
-ax2 = plt.subplot(3,5,15)
-ax2.set_title('sample origin',size=20)
-counts = 2
-for label, indices in labc.items():
-    cf = ax2.scatter(mapper.embedding_[indices,0],mapper.embedding_[indices,1],s=markersize,c = color4[counts],alpha=0.8,edgecolor='k',label=label)
-    counts+=1
-plt.legend(loc=4,fontsize=8)
-plt.axis('off')
-
-plt.tight_layout()
-#plt.savefig('output/umap-w1-sampleA-2.png')
-```
-
-```{code-cell} ipython3
 # Assuming 'mapper.embedding_' is your data and 'labc' is your dictionary of labels to indices
 hist, x_edges, y_edges = np.histogram2d(mapper.embedding_[:, 0], mapper.embedding_[:, 1], bins=12)
 plt.figure(figsize=(12, 6))
@@ -490,8 +515,7 @@ plt.figure(figsize=(12, 6))
 # Define groups of labels
 group_labels = {
     'SDSS QSOs': ['SDSS_QSO'],
-    'MBHB Candidates': ['bigMAC_binary','OJ287','PG1302','Charisi16', 'Chen20', 'Graham15', 'Liu19', 'Ward22_wise', 'Ward22_ztf'],
-    'Confirmed Dual-MBHs': ['bigMAC_dual', 'Rodriguez06']#
+    'MBHB Candidates': ['OJ287','PG1302','Charisi16', 'Chen20', 'Graham15', 'Liu19', 'Ward22_wise', 'Ward22_ztf'],#'bigMAC_binary',
 }
 
 # Custom colormap for visual consistency
@@ -510,11 +534,166 @@ for group_name, labels in group_labels.items():
     plt.axis('off')
     i += 1
 
+plt.scatter(5.5,19,marker='+',color='r',label='PG 1302-2102')
+plt.scatter(8.5,16.5,marker='x',color='r',label='OJ 287')
+plt.legend(loc=4)
+
+group_labels = {
+    'Confirmed Dual-MBHs': ['bigMAC_dual', 'Rodriguez06']#
+}
+
+# Custom colormap for visual consistency
+custom_cmap = 'viridis'  # Replace with your colormap of choice
+
+# Create subplots for each group
+i = 1
+for group_name, labels in group_labels.items():
+    group_indices = np.hstack([labc[label] for label in labels if label in labc])
+    hist_per_group, _, _ = np.histogram2d(mapper.embedding_[group_indices, 0], mapper.embedding_[group_indices, 1], bins=(x_edges, y_edges))
+    prob = hist_per_group / hist
+    plt.subplot(2, 3, 3)  # Adjust the subplot layout as needed
+    plt.title(group_name)
+    plt.contourf(x_edges[:-1], y_edges[:-1], prob.T, levels=12, alpha=0.8, cmap=custom_cmap)
+    plt.colorbar()
+    plt.axis('off')
+    i += 1
+
+plt.scatter(15.5,23.,marker='x',color='r',label='0402+379')
+plt.legend(loc=4)
 
 # Define groups of labels
 
 plt.tight_layout()
-plt.savefig('WISE1_dual.png')
+plt.savefig('WISE_hist2d.png')
+```
+
+```{code-cell} ipython3
+# Assuming 'mapper.embedding_' is your data and 'labc' is your dictionary of labels to indices
+hist, x_edges, y_edges = np.histogram2d(mapper2.embedding_[:, 0], mapper2.embedding_[:, 1], bins=12)
+plt.figure(figsize=(12, 6))
+
+# Define groups of labels
+group_labels = {
+    'SDSS QSOs': ['SDSS_QSO'],
+    'MBHB Candidates': ['OJ287','PG1302','Charisi16', 'Chen20', 'Graham15', 'Liu19', 'Ward22_wise', 'Ward22_ztf'],
+}
+
+# Custom colormap for visual consistency
+custom_cmap = 'viridis'  # Replace with your colormap of choice
+thiscolor = stretch_small_values_arctan(np.nansum(fvar_arr, axis=0), factor=3)
+
+
+# Create subplots for each group
+i = 1
+for group_name, labels in group_labels.items():
+    group_indices = np.hstack([labc[label] for label in labels if label in labc])
+    thcol = thiscolor[group_indices]
+    subset_transformed = mapper.transform(data[group_indices])  # Transform data
+    plt.subplot(2, 3, i)  # Adjust the subplot layout as needed
+    plt.title(group_name)
+    plt.scatter(mapper.embedding_[:, 0], mapper.embedding_[:, 1],c='grey',alpha=0.3)
+    plt.scatter(subset_transformed[:, 0], subset_transformed[:, 1], c=thcol, s=30, edgecolor='none', cmap=cmap1, alpha=0.6)
+    plt.colorbar()
+    plt.axis('off')
+    i += 1
+
+
+group_indices = np.hstack([labc['PG1302']])
+subset_transformed = mapper.transform(data[group_indices])  # Transform data
+plt.scatter(subset_transformed[:, 0], subset_transformed[:, 1],marker='+',color='r',label='PG 1302-2102')
+
+group_indices = np.hstack([labc['OJ287']])
+subset_transformed = mapper.transform(data[group_indices])  # Transform data
+plt.scatter(subset_transformed[:, 0], subset_transformed[:, 1],marker='x',color='r',label='OJ 287')
+plt.legend(loc=4)
+
+group_labels = {
+    'Confirmed Dual-MBHs': ['bigMAC_dual', 'Rodriguez06']#
+}
+for group_name, labels in group_labels.items():
+    group_indices = np.hstack([labc[label] for label in labels if label in labc])
+    thcol = thiscolor[group_indices]
+    subset_transformed = mapper.transform(data[group_indices])  # Transform data
+    plt.subplot(2, 3, 3)  # Adjust the subplot layout as needed
+    plt.title(group_name)
+    plt.scatter(mapper.embedding_[:, 0], mapper.embedding_[:, 1],c='grey',alpha=0.3)
+    plt.scatter(subset_transformed[:, 0], subset_transformed[:, 1], c=thcol, s=30, edgecolor='none', cmap=cmap1, alpha=0.6)
+    plt.colorbar()
+    plt.axis('off')
+
+group_indices = np.hstack([labc['Rodriguez06']])
+subset_transformed = mapper.transform(data[group_indices])  # Transform data
+plt.scatter(subset_transformed[:, 0], subset_transformed[:, 1],marker='x',color='r',label='0402+379')
+plt.legend(loc=4)
+
+# Define groups of labels
+
+plt.tight_layout()
+plt.savefig('WISE_last.png')
+```
+
+```{code-cell} ipython3
+# Assuming 'mapper.embedding_' is your data and 'labc' is your dictionary of labels to indices
+hist, x_edges, y_edges = np.histogram2d(mapper2.embedding_[:, 0], mapper2.embedding_[:, 1], bins=12)
+plt.figure(figsize=(10, 4))
+
+# Define groups of labels
+group_labels = {
+    'MBHB Candidates': ['OJ287','PG1302','Charisi16', 'Chen20', 'Graham15', 'Liu19', 'Ward22_wise', 'Ward22_ztf'],
+}
+
+# Custom colormap for visual consistency
+custom_cmap = 'viridis'  # Replace with your colormap of choice
+thiscolor = stretch_small_values_arctan(np.nansum(fvar_arr, axis=0), factor=3)
+
+
+# Create subplots for each group
+i = 1
+for group_name, labels in group_labels.items():
+    group_indices = np.hstack([labc[label] for label in labels if label in labc])
+    thcol = thiscolor[group_indices]
+    subset_transformed = mapper.transform(data[group_indices])  # Transform data
+    plt.subplot(1, 2, 1)  # Adjust the subplot layout as needed
+    plt.title(group_name)
+    plt.scatter(mapper.embedding_[:, 0], mapper.embedding_[:, 1],c='grey',alpha=0.3)
+    plt.scatter(subset_transformed[:, 0], subset_transformed[:, 1], c=thcol, s=30, edgecolor='none', cmap=cmap1)
+    plt.colorbar()
+    plt.axis('off')
+    i += 1
+
+
+group_indices = np.hstack([labc['PG1302']])
+subset_transformed = mapper.transform(data[group_indices])  # Transform data
+plt.scatter(subset_transformed[:, 0], subset_transformed[:, 1],marker='+',color='r',label='PG 1302-2102')
+
+group_indices = np.hstack([labc['OJ287']])
+subset_transformed = mapper.transform(data[group_indices])  # Transform data
+plt.scatter(subset_transformed[:, 0], subset_transformed[:, 1],marker='x',color='r',label='OJ 287')
+plt.legend(loc=3)
+
+group_labels = {
+    'Confirmed Dual-MBHs': ['bigMAC_dual', 'Rodriguez06']#
+}
+for group_name, labels in group_labels.items():
+    group_indices = np.hstack([labc[label] for label in labels if label in labc])
+    thcol = thiscolor[group_indices]
+    subset_transformed = mapper.transform(data[group_indices])  # Transform data
+    plt.subplot(1, 2, 2)  # Adjust the subplot layout as needed
+    plt.title(group_name)
+    plt.scatter(mapper.embedding_[:, 0], mapper.embedding_[:, 1],c='grey',alpha=0.3)
+    plt.scatter(subset_transformed[:, 0], subset_transformed[:, 1], c=thcol, s=30, edgecolor='none', cmap=cmap1)
+    plt.colorbar()
+    plt.axis('off')
+
+group_indices = np.hstack([labc['Rodriguez06']])
+subset_transformed = mapper.transform(data[group_indices])  # Transform data
+plt.scatter(subset_transformed[:, 0], subset_transformed[:, 1],marker='x',color='r',label='0402+379')
+plt.legend(loc=3)
+
+# Define groups of labels
+
+plt.tight_layout()
+plt.savefig('WISE_last.png')
 ```
 
 # ZTF+ WISE Manifold
@@ -550,8 +729,8 @@ for index, f in enumerate(fzr):
 ```
 
 ```{code-cell} ipython3
-mapper = umap.UMAP(n_neighbors=50,min_dist=0.99,metric=dtw_distance,random_state=10).fit(data)
-#mapper = umap.UMAP(n_neighbors=7,min_dist=0.99,metric='manhattan',random_state=5).fit(data)
+#mapper2 = umap.UMAP(n_neighbors=50,min_dist=0.99,metric=dtw_distance,random_state=10).fit(data)
+mapper2 = umap.UMAP(n_neighbors=17,min_dist=0.99,metric='manhattan',random_state=5).fit(data)
 
 plt.figure(figsize=(12,4))
 markersize=100
@@ -561,7 +740,7 @@ ax1 = plt.subplot(1,3,1)
 ax1.set_title(r'$\rm Mean\ brightness$')
 thiscolor=np.log10(np.nansum(average_arr,axis=0))
 u = (thiscolor<2) & (thiscolor>=-2)
-cf = ax1.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
+cf = ax1.scatter(mapper2.embedding_[u,0],mapper2.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
 plt.axis('off')
 divider = make_axes_locatable(ax1)
 cax = divider.append_axes("right", size="5%", pad=0.05)
@@ -572,7 +751,7 @@ ax1 = plt.subplot(1,3,3)
 ax1.set_title(r'$\rm Mean\ Fractional\ Variation$')
 thiscolor=stretch_small_values_arctan(np.nansum(fvar_arr,axis=0),factor=3)
 u = (thiscolor<1.5) & (thiscolor>=0)
-cf = ax1.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
+cf = ax1.scatter(mapper2.embedding_[u,0],mapper2.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
 plt.axis('off')
 divider = make_axes_locatable(ax1)
 cax = divider.append_axes("right", size="5%", pad=0.05)
@@ -583,7 +762,7 @@ ax1 = plt.subplot(1,3,2)
 ax1.set_title(r'$\rm Redshift$')
 thiscolor=redshift_shuffled
 u = (thiscolor<2) & (thiscolor>=0)
-cf = ax1.scatter(mapper.embedding_[u,0],mapper.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
+cf = ax1.scatter(mapper2.embedding_[u,0],mapper2.embedding_[u,1],c = thiscolor[u],s=markersize,edgecolor='k',cmap=cmap1)
 plt.axis('off')
 divider = make_axes_locatable(ax1)
 cax = divider.append_axes("right", size="5%", pad=0.05)
@@ -592,13 +771,7 @@ plt.colorbar(cf,cax=cax)
 plt.tight_layout()
 ```
 
-```{code-cell} ipython3
-import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-
-# Initialize plot grid
-fig, axes = plt.subplots(3, 4, figsize=(15, 9))  # 3 rows, 5 columns
+## fig, axes = plt.subplots(3, 4, figsize=(15, 9))  # 3 rows, 5 columns
 axes = axes.flatten()  # Convert to a list for easier indexing
 
 # Subset labels
@@ -614,14 +787,14 @@ u = (thiscolor < 1.) & (thiscolor >= 0)  # Apply mask
 for i, label in enumerate(laborder):
     if label in labc:
         indices = labc[label]
-        subset_transformed = mapper.transform(data[indices])  # Transform data
+        subset_transformed = mapper2.transform(data[indices])  # Transform data
 
         # Select subplot
         ax = axes[i]
         ax.set_title(label)
 
         # Background density map
-        cf = ax.scatter(mapper.embedding_[u, 0], mapper.embedding_[u, 1], 
+        cf = ax.scatter(mapper2.embedding_[u, 0], mapper2.embedding_[u, 1], 
                         c=thiscolor[u], s=10, edgecolor='none', cmap=cmap1, alpha=0.6)
 
         # Overlay subset scatter plot
@@ -639,51 +812,39 @@ for i, label in enumerate(laborder):
 # Adjust layout
 plt.tight_layout()
 plt.savefig('newway_ztfwise.png')
-```
-
-```{code-cell} ipython3
-# Calculate 2D histogram
-hist, x_edges, y_edges = np.histogram2d(mapper.embedding_[:, 0], mapper.embedding_[:, 1], bins=15)
-plt.figure(figsize=(18,8))
-i=1
-#laborder = ['SDSS_QSO','WISE_Variable','Optical_Variable','Galex_Variable','SPIDER_AGN','SPIDER_AGNBL','SPIDER_QSOBL','SPIDER_BL','Turn-on','Turn-off','TDE','Fermi_Blazars']
-laborder = ['SDSS_QSO','WISE_Variable','Optical_Variable','bigMAC_dual','Rodriguez06','bigMAC_binary','Graham15','Ward22_wise','Ward22_ztf','Charisi16','Chen20','Liu19','PG1302','OJ287']
-
-for label in laborder:
-    if label in labc:
-        indices = labc[label]
-        hist_per_cluster, _, _ = np.histogram2d(mapper.embedding_[indices,0], mapper.embedding_[indices,1], bins=(x_edges, y_edges))
-        prob = hist_per_cluster / hist
-        plt.subplot(3,5,i)
-        plt.title(label)
-        plt.contourf(x_edges[:-1], y_edges[:-1], prob.T, levels=20, alpha=0.8,cmap=custom_cmap)
-        plt.colorbar()
-        plt.axis('off')
-        #cf = ax0.scatter(mapper.embedding_[indices,0],mapper.embedding_[indices,1],s=80,alpha=0.5,edgecolor='gray',label=label,c=colors[i-1])
-        i+=1
-        
-ax2 = plt.subplot(3,5,15)
-ax2.set_title('sample origin',size=20)
-counts = 2
-for label, indices in labc.items():
-    cf = ax2.scatter(mapper.embedding_[indices,0],mapper.embedding_[indices,1],s=markersize,c = color4[counts],alpha=0.8,edgecolor='k',label=label)
-    counts+=1
-plt.legend(loc=4,fontsize=8)
-plt.axis('off')
-
-plt.tight_layout()
-#plt.savefig('output/umap-w1-sampleA-2.png')
-```
 
 ```{code-cell} ipython3
 # Assuming 'mapper.embedding_' is your data and 'labc' is your dictionary of labels to indices
-hist, x_edges, y_edges = np.histogram2d(mapper.embedding_[:, 0], mapper.embedding_[:, 1], bins=15)
+hist, x_edges, y_edges = np.histogram2d(mapper2.embedding_[:, 0], mapper2.embedding_[:, 1], bins=12)
 plt.figure(figsize=(12, 6))
 
 # Define groups of labels
 group_labels = {
     'SDSS QSOs': ['SDSS_QSO'],
-    'MBHB Candidates': ['bigMAC_binary','OJ287','PG1302','Charisi16', 'Chen20', 'Graham15', 'Liu19', 'Ward22_wise', 'Ward22_ztf'],
+    'MBHB Candidates': ['OJ287','PG1302','Charisi16', 'Chen20', 'Graham15', 'Liu19', 'Ward22_wise', 'Ward22_ztf'],
+}
+
+# Custom colormap for visual consistency
+custom_cmap = 'viridis'  # Replace with your colormap of choice
+
+# Create subplots for each group
+i = 1
+for group_name, labels in group_labels.items():
+    group_indices = np.hstack([labc[label] for label in labels if label in labc])
+    hist_per_group, _, _ = np.histogram2d(mapper2.embedding_[group_indices, 0], mapper2.embedding_[group_indices, 1], bins=(x_edges, y_edges))
+    prob = hist_per_group / hist
+    plt.subplot(2, 3, i)  # Adjust the subplot layout as needed
+    plt.title(group_name)
+    plt.contourf(x_edges[:-1], y_edges[:-1], prob.T, levels=15, alpha=0.8, cmap=custom_cmap)
+    plt.colorbar()
+    plt.axis('off')
+    i += 1
+
+plt.scatter(6.8,3,marker='+',color='r',label='PG 1302-2102')
+plt.scatter(-5,11,marker='x',color='r',label='OJ 287')
+plt.legend(loc=4)
+
+group_labels = {
     'Confirmed Dual-MBHs': ['bigMAC_dual', 'Rodriguez06']#
 }
 
@@ -694,20 +855,169 @@ custom_cmap = 'viridis'  # Replace with your colormap of choice
 i = 1
 for group_name, labels in group_labels.items():
     group_indices = np.hstack([labc[label] for label in labels if label in labc])
-    hist_per_group, _, _ = np.histogram2d(mapper.embedding_[group_indices, 0], mapper.embedding_[group_indices, 1], bins=(x_edges, y_edges))
+    hist_per_group, _, _ = np.histogram2d(mapper2.embedding_[group_indices, 0], mapper2.embedding_[group_indices, 1], bins=(x_edges, y_edges))
     prob = hist_per_group / hist
+    plt.subplot(2, 3, 3)  # Adjust the subplot layout as needed
+    plt.title(group_name)
+    plt.contourf(x_edges[:-1], y_edges[:-1], prob.T, levels=12, alpha=0.8, cmap=custom_cmap)
+    plt.colorbar()
+    plt.axis('off')
+    i += 1
+
+plt.scatter(0.2,-3.5,marker='x',color='r',label='0402+379')
+plt.legend(loc=4)
+
+# Define groups of labels
+
+plt.tight_layout()
+plt.savefig('ZTFWISE_hist2d.png')
+```
+
+```{code-cell} ipython3
+# Assuming 'mapper.embedding_' is your data and 'labc' is your dictionary of labels to indices
+hist, x_edges, y_edges = np.histogram2d(mapper2.embedding_[:, 0], mapper2.embedding_[:, 1], bins=12)
+plt.figure(figsize=(12, 6))
+
+# Define groups of labels
+group_labels = {
+    'SDSS QSOs': ['SDSS_QSO'],
+    'MBHB Candidates': ['OJ287','PG1302','Charisi16', 'Chen20', 'Graham15', 'Liu19', 'Ward22_wise', 'Ward22_ztf'],
+}
+
+# Custom colormap for visual consistency
+custom_cmap = 'viridis'  # Replace with your colormap of choice
+thiscolor = stretch_small_values_arctan(np.nansum(fvar_arr, axis=0), factor=3)
+
+
+# Create subplots for each group
+i = 1
+for group_name, labels in group_labels.items():
+    group_indices = np.hstack([labc[label] for label in labels if label in labc])
+    thcol = thiscolor[group_indices]
+
+    subset_transformed = mapper2.transform(data[group_indices])  # Transform data
     plt.subplot(2, 3, i)  # Adjust the subplot layout as needed
     plt.title(group_name)
-    plt.contourf(x_edges[:-1], y_edges[:-1], prob.T, levels=15, alpha=0.8, cmap=custom_cmap)
+    plt.scatter(mapper2.embedding_[:, 0], mapper2.embedding_[:, 1],c='grey',alpha=0.3)
+    plt.scatter(subset_transformed[:, 0], subset_transformed[:, 1], c=thcol, s=30, edgecolor='none', cmap=cmap1, alpha=0.6)
     plt.colorbar()
     plt.axis('off')
     i += 1
 
 
+group_indices = np.hstack([labc['PG1302']])
+subset_transformed = mapper2.transform(data[group_indices])  # Transform data
+plt.scatter(subset_transformed[:, 0], subset_transformed[:, 1],marker='+',color='r',label='PG 1302-2102')
+
+group_indices = np.hstack([labc['OJ287']])
+subset_transformed = mapper2.transform(data[group_indices])  # Transform data
+plt.scatter(subset_transformed[:, 0], subset_transformed[:, 1],marker='x',color='r',label='OJ 287')
+plt.legend(loc=4)
+
+group_labels = {
+    'Confirmed Dual-MBHs': ['bigMAC_dual', 'Rodriguez06']#
+}
+
+# Custom colormap for visual consistency
+custom_cmap = 'viridis'  # Replace with your colormap of choice
+
+# Create subplots for each group
+i = 1
+for group_name, labels in group_labels.items():
+
+    group_indices = np.hstack([labc[label] for label in labels if label in labc])
+    thcol = thiscolor[group_indices]
+    subset_transformed = mapper2.transform(data[group_indices])  # Transform data
+    plt.subplot(2, 3, 3)  # Adjust the subplot layout as needed
+    plt.title(group_name)
+    plt.scatter(mapper2.embedding_[:, 0], mapper2.embedding_[:, 1],c='grey',alpha=0.3)
+    plt.scatter(subset_transformed[:, 0], subset_transformed[:, 1], c=thcol, s=30, edgecolor='none', cmap=cmap1, alpha=0.6)
+    plt.colorbar()
+    plt.axis('off')
+    i += 1
+
+group_indices = np.hstack([labc['Rodriguez06']])
+subset_transformed = mapper2.transform(data[group_indices])  # Transform data
+plt.scatter(subset_transformed[:, 0], subset_transformed[:, 1],marker='x',color='r',label='0402+379')
+plt.legend(loc=4)
+
 # Define groups of labels
 
 plt.tight_layout()
-#plt.savefig('WISE1_dual.png')
+plt.savefig('ZTFWISE_hist2d.png')
+```
+
+```{code-cell} ipython3
+# Assuming 'mapper.embedding_' is your data and 'labc' is your dictionary of labels to indices
+hist, x_edges, y_edges = np.histogram2d(mapper2.embedding_[:, 0], mapper2.embedding_[:, 1], bins=12)
+plt.figure(figsize=(10, 4))
+
+# Define groups of labels
+group_labels = {
+    'MBHB Candidates': ['OJ287','PG1302','Charisi16', 'Chen20', 'Graham15', 'Liu19', 'Ward22_wise', 'Ward22_ztf'],
+}
+
+# Custom colormap for visual consistency
+custom_cmap = 'viridis'  # Replace with your colormap of choice
+thiscolor = stretch_small_values_arctan(np.nansum(fvar_arr, axis=0), factor=3)
+
+
+# Create subplots for each group
+i = 1
+for group_name, labels in group_labels.items():
+    group_indices = np.hstack([labc[label] for label in labels if label in labc])
+    thcol = thiscolor[group_indices]
+
+    subset_transformed = mapper2.transform(data[group_indices])  # Transform data
+    plt.subplot(1, 2, 1)  # Adjust the subplot layout as needed
+    plt.title(group_name)
+    plt.scatter(mapper2.embedding_[:, 0], mapper2.embedding_[:, 1],c='grey',alpha=0.3)
+    plt.scatter(subset_transformed[:, 0], subset_transformed[:, 1], c=thcol, s=30, edgecolor='none', cmap=cmap1)
+    plt.colorbar()
+    plt.axis('off')
+    i += 1
+
+
+group_indices = np.hstack([labc['PG1302']])
+subset_transformed = mapper2.transform(data[group_indices])  # Transform data
+plt.scatter(subset_transformed[:, 0], subset_transformed[:, 1],marker='+',color='r',label='PG 1302-2102')
+
+group_indices = np.hstack([labc['OJ287']])
+subset_transformed = mapper2.transform(data[group_indices])  # Transform data
+plt.scatter(subset_transformed[:, 0], subset_transformed[:, 1],marker='x',color='r',label='OJ 287')
+plt.legend(loc=4)
+
+group_labels = {
+    'Confirmed Dual-MBHs': ['bigMAC_dual', 'Rodriguez06']#
+}
+
+# Custom colormap for visual consistency
+custom_cmap = 'viridis'  # Replace with your colormap of choice
+
+# Create subplots for each group
+i = 1
+for group_name, labels in group_labels.items():
+
+    group_indices = np.hstack([labc[label] for label in labels if label in labc])
+    thcol = thiscolor[group_indices]
+    subset_transformed = mapper2.transform(data[group_indices])  # Transform data
+    plt.subplot(1, 2, 2)  # Adjust the subplot layout as needed
+    plt.title(group_name)
+    plt.scatter(mapper2.embedding_[:, 0], mapper2.embedding_[:, 1],c='grey',alpha=0.3)
+    plt.scatter(subset_transformed[:, 0], subset_transformed[:, 1], c=thcol, s=30, edgecolor='none', cmap=cmap1)
+    plt.colorbar()
+    plt.axis('off')
+    i += 1
+
+group_indices = np.hstack([labc['Rodriguez06']])
+subset_transformed = mapper2.transform(data[group_indices])  # Transform data
+plt.scatter(subset_transformed[:, 0], subset_transformed[:, 1],marker='x',color='r',label='0402+379')
+plt.legend(loc=4)
+
+# Define groups of labels
+
+plt.tight_layout()
+plt.savefig('ZTFWISE_hist2d.png')
 ```
 
 ```{code-cell} ipython3
