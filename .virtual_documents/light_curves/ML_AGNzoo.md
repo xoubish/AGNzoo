@@ -1,21 +1,6 @@
----
-jupytext:
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.16.7
-kernelspec:
-  display_name: Python 3 (ipykernel)
-  language: python
-  name: python3
----
 
-# How do AGNs selected with different techniques compare?
 
-We use manifold learning and dimensionality reduction to learn the distribution of AGN lightcurves observed with different facilities. We mostly focus on UMAP ([Uniform Manifold Approximation and Projection, McInnes 2020](https://arxiv.org/pdf/1802.03426.pdf)). The reduced 2D projections from the unsupervised ML techniques reveal similarities and overlaps of different selection techniques and coloring the projections with various statistical physical properties (e.g., mean brightness, fractional lightcurve variation) is informative of correlations of the selections technique with physics such as AGN variability. Using different parts of the EM in training (or in building the initial higher dimensional manifold) demonstrates how much information if any is in that part of the data for each labeling scheme, for example whether with ZTF optical light curves alone, we can identify sources with variability in WISE near IR bands. These techniques also have a potential for identifying targets of a specific class or characteristic for future follow up observations.
 
-```{code-cell} ipython3
 #!pip install -r requirements.txt
 import sys
 import os
@@ -64,26 +49,23 @@ warnings.filterwarnings('ignore')
 
 color4 = ['#3182bd','#6baed6','#9ecae1','#e6550d','#fd8d3c','#fdd0a2','#31a354','#a1d99b', '#c7e9c0', '#756bb1', '#bcbddc', '#dadaeb', '#969696', '#bdbdbd','#d9d9d9','b','r','g']
 custom_cmap = LinearSegmentedColormap.from_list("custom_theme", color4[1:])
-```
 
-```{code-cell} ipython3
+
 samp = pd.read_csv('data/AGNsample_March7.csv')
 
 df_lc = pd.read_parquet('data/Dave_df_march7.parquet')
 objids = df_lc.index.get_level_values('objectid')[:].unique()
 redshifts = samp['redshift']#[objids]
 df_lc
-```
 
-```{code-cell} ipython3
+
 unique_labels = df_lc.index.get_level_values('label').unique()
 print("Unique labels:", unique_labels)
 
 for u in unique_labels:
     print(translate_bitwise_sum_to_labels(u))
-```
 
-```{code-cell} ipython3
+
 from plot_functions import create_figure
 grouped = list(df_lc.groupby('objectid'))
 
@@ -95,9 +77,8 @@ for ind in range(2118,2119):
                        index = ind,  
                        save_output = False,  # should the resulting plots be saved?
                       )
-```
 
-```{code-cell} ipython3
+
 x_ztf = np.linspace(0, 1850, 175)  # For ZTF
 kernel = RationalQuadratic(length_scale=1, alpha=0.1)
 colors = ['#3182bd','#6baed6','#9ecae1','#e6550d','#fd8d3c','#fdd0a2','#31a354','#a1d99b', '#c7e9c0', '#756bb1', '#bcbddc', '#dadaeb', '#969696', '#bdbdbd','#d9d9d9']
@@ -225,11 +206,11 @@ plt.ylabel(r'$\rm Flux(mJy)$',size=15)
 plt.legend(loc=1)
 plt.tight_layout()
 #plt.savefig('output/unify_lc1619.png')
-```
 
-# ZTF bands only
 
-```{code-cell} ipython3
+
+
+
 bands_inlc = ['zg','zr','zi']
 numobjs = len(df_lc.index.get_level_values('objectid')[:].unique())
 sample_objids = df_lc.index.get_level_values('objectid').unique()[:numobjs]
@@ -251,11 +232,10 @@ for index, f in enumerate(fzr):
         if label not in labc:
             labc[label] = []  # Initialize the list for this label if it's not already in labc
         labc[label].append(index)  # Append the current index to the list of indices for this label
-```
 
-```{code-cell} ipython3
-mapper = umap.UMAP(n_neighbors=50,min_dist=0.99,metric=dtw_distance,random_state=2).fit(data)
-#mapper = umap.UMAP(n_neighbors=100,min_dist=0.99,metric='manhattan',random_state=3).fit(data)
+
+#mapper = umap.UMAP(n_neighbors=5,min_dist=0.99,metric=dtw_distance,random_state=2).fit(data)
+mapper = umap.UMAP(n_neighbors=100,min_dist=0.99,metric='manhattan',random_state=3).fit(data)
 
 plt.figure(figsize=(12,4))
 markersize=100
@@ -284,10 +264,9 @@ plt.colorbar(cf,cax=cax)
 
 
 plt.tight_layout()
-#plt.savefig('output/new_ztf.png')
-```
+#plt.savefig('output/umap-w1-sampleA-1.png')
 
-```{code-cell} ipython3
+
 # Initialize plot grid
 fig, axes = plt.subplots(3, 4, figsize=(15, 9))  # 3 rows, 5 columns
 axes = axes.flatten()  # Convert to a list for easier indexing
@@ -330,11 +309,11 @@ for i, label in enumerate(laborder):
 # Adjust layout
 plt.tight_layout()
 plt.savefig('newway_ZTF.png')
-```
 
-# Wise only
 
-```{code-cell} ipython3
+
+
+
 bands_inlc = ['W1']
 numobjs = len(df_lc.index.get_level_values('objectid')[:].unique())
 sample_objids = df_lc.index.get_level_values('objectid').unique()[:numobjs]
@@ -362,9 +341,8 @@ for index, f in enumerate(fzr):
         if label not in labc:
             labc[label] = []  # Initialize the list for this label if it's not already in labc
         labc[label].append(index)  # Append the current index to the list of indices for this label
-```
 
-```{code-cell} ipython3
+
 mapper = umap.UMAP(n_neighbors=100,min_dist=0.99,metric=dtw_distance,random_state=7).fit(data)
 #mapper = umap.UMAP(n_neighbors=7,min_dist=0.999,metric='manhattan',random_state=5).fit(data)
 
@@ -396,9 +374,8 @@ plt.colorbar(cf,cax=cax)
 
 plt.tight_layout()
 #plt.savefig('output/umap-w1-sampleA-1.png')
-```
 
-```{code-cell} ipython3
+
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -445,9 +422,8 @@ for i, label in enumerate(laborder):
 # Adjust layout
 plt.tight_layout()
 plt.savefig('newway_wise.png')
-```
 
-```{code-cell} ipython3
+
 # Calculate 2D histogram
 hist, x_edges, y_edges = np.histogram2d(mapper.embedding_[:, 0], mapper.embedding_[:, 1], bins=15)
 plt.figure(figsize=(18,8))
@@ -480,9 +456,8 @@ plt.axis('off')
 
 plt.tight_layout()
 #plt.savefig('output/umap-w1-sampleA-2.png')
-```
 
-```{code-cell} ipython3
+
 # Assuming 'mapper.embedding_' is your data and 'labc' is your dictionary of labels to indices
 hist, x_edges, y_edges = np.histogram2d(mapper.embedding_[:, 0], mapper.embedding_[:, 1], bins=12)
 plt.figure(figsize=(12, 6))
@@ -515,11 +490,11 @@ for group_name, labels in group_labels.items():
 
 plt.tight_layout()
 plt.savefig('WISE1_dual.png')
-```
 
-# ZTF+ WISE Manifold
 
-```{code-cell} ipython3
+
+
+
 bands_inlc = ['zg','zr','zi','W1','W2']
 numobjs = len(df_lc.index.get_level_values('objectid')[:].unique())
 sample_objids = df_lc.index.get_level_values('objectid').unique()[:numobjs]
@@ -547,11 +522,10 @@ for index, f in enumerate(fzr):
         if label not in labc:
             labc[label] = []  # Initialize the list for this label if it's not already in labc
         labc[label].append(index)  # Append the current index to the list of indices for this label
-```
 
-```{code-cell} ipython3
-mapper = umap.UMAP(n_neighbors=50,min_dist=0.99,metric=dtw_distance,random_state=10).fit(data)
-#mapper = umap.UMAP(n_neighbors=7,min_dist=0.99,metric='manhattan',random_state=5).fit(data)
+
+#mapper = umap.UMAP(n_neighbors=5,min_dist=0.99,metric=dtw_distance,random_state=10).fit(data)
+mapper = umap.UMAP(n_neighbors=7,min_dist=0.99,metric='manhattan',random_state=5).fit(data)
 
 plt.figure(figsize=(12,4))
 markersize=100
@@ -590,9 +564,8 @@ cax = divider.append_axes("right", size="5%", pad=0.05)
 plt.colorbar(cf,cax=cax)
 
 plt.tight_layout()
-```
 
-```{code-cell} ipython3
+
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -639,14 +612,14 @@ for i, label in enumerate(laborder):
 # Adjust layout
 plt.tight_layout()
 plt.savefig('newway_ztfwise.png')
-```
 
-```{code-cell} ipython3
+
 # Calculate 2D histogram
 hist, x_edges, y_edges = np.histogram2d(mapper.embedding_[:, 0], mapper.embedding_[:, 1], bins=15)
 plt.figure(figsize=(18,8))
 i=1
 #laborder = ['SDSS_QSO','WISE_Variable','Optical_Variable','Galex_Variable','SPIDER_AGN','SPIDER_AGNBL','SPIDER_QSOBL','SPIDER_BL','Turn-on','Turn-off','TDE','Fermi_Blazars']
+laborder = ['SDSS_QSO','WISE_Variable','Optical_Variable','Charisi16','Chen20','Graham15','Liu19','Ward22_wise','Ward22_ztf','bigMAC','Rodriguez06']
 laborder = ['SDSS_QSO','WISE_Variable','Optical_Variable','bigMAC_dual','Rodriguez06','bigMAC_binary','Graham15','Ward22_wise','Ward22_ztf','Charisi16','Chen20','Liu19','PG1302','OJ287']
 
 for label in laborder:
@@ -673,9 +646,8 @@ plt.axis('off')
 
 plt.tight_layout()
 #plt.savefig('output/umap-w1-sampleA-2.png')
-```
 
-```{code-cell} ipython3
+
 # Assuming 'mapper.embedding_' is your data and 'labc' is your dictionary of labels to indices
 hist, x_edges, y_edges = np.histogram2d(mapper.embedding_[:, 0], mapper.embedding_[:, 1], bins=15)
 plt.figure(figsize=(12, 6))
@@ -708,8 +680,6 @@ for group_name, labels in group_labels.items():
 
 plt.tight_layout()
 #plt.savefig('WISE1_dual.png')
-```
 
-```{code-cell} ipython3
 
-```
+
